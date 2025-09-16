@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  postgres-dev:
+    image: postgres:16
+    container_name: stockguard-dev-db
+    environment:
+      POSTGRES_DB: stockguard_dev
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpass
+    ports:
+      - "5433:5432"   # host:container
+    volumes:
+      - stockguard_dev_data:/var/lib/postgresql/data
+    networks:
+      - stockguard-network
+
+  postgres-stage:
+    image: postgres:16
+    container_name: stockguard-stage-db
+    environment:
+      POSTGRES_DB: stockguard_stage
+      POSTGRES_USER: stageuser
+      POSTGRES_PASSWORD: stagepass
+    ports:
+      - "5434:5432"
+    volumes:
+      - stockguard_stage_data:/var/lib/postgresql/data
+    networks:
+      - stockguard-network
+
+  postgres-prod:
+    image: postgres:16
+    container_name: stockguard-prod-db
+    environment:
+      POSTGRES_DB: stockguard_prod
+      POSTGRES_USER: produser
+      POSTGRES_PASSWORD: prodpass
+    ports:
+      - "5435:5432"
+    volumes:
+      - stockguard_prod_data:/var/lib/postgresql/data
+    networks:
+      - stockguard-network
+
+volumes:
+  stockguard_dev_data:
+  stockguard_stage_data:
+  stockguard_prod_data:
+
+networks:
+  stockguard-network:

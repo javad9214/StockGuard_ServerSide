@@ -3,6 +3,7 @@ package com.stockguard.controller;
 import com.stockguard.domain.Product;
 import com.stockguard.dto.PagedResponse;
 import com.stockguard.service.ProductService;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
@@ -19,7 +20,7 @@ public class ProductController {
     }
 
     @GetMapping
-    public PagedResponse<Product> getAllProducts(Pageable pageable) {
+    public PagedResponse<Product> getAllProducts(@PageableDefault(size = 20) Pageable pageable) {
         Page<Product> pageResult = productService.getAllProducts(pageable);
         return new PagedResponse<>(
                 pageResult.getContent(),
@@ -55,7 +56,7 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    public PagedResponse<Product> searchProducts(@RequestParam String query,Pageable pageable) {
+    public PagedResponse<Product> searchProducts(@RequestParam String query, @PageableDefault(size = 20) Pageable pageable) {
         Page<Product> pageResult = productService.searchProducts(query, pageable);
         return new PagedResponse<>(
                 pageResult.getContent(),

@@ -4,7 +4,8 @@ import com.stockguard.domain.Product;
 import com.stockguard.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 @RestController
@@ -46,8 +47,8 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    public List<Product> searchProducts(@RequestParam String query) {
-        return productService.searchProducts(query);
+    public Page<Product> searchProducts(@RequestParam String query,Pageable pageable) {
+        return productService.searchProducts(query,pageable);
     }
 
 }

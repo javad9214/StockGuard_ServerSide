@@ -4,7 +4,8 @@ import com.stockguard.domain.Product;
 import com.stockguard.repository.ProductRepository;
 import com.stockguard.service.ProductService;
 import org.springframework.stereotype.Service;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,7 +46,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<Product> searchProducts(String query) {
-        return productRepository.findByNameContainingIgnoreCaseOrBarcodeContaining(query, query);
+    public Page<Product> searchProducts(String query, Pageable pageable) {
+        return productRepository.findByNameContainingIgnoreCaseOrBarcodeContaining(query, query,pageable);
     }
 }

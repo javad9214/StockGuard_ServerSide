@@ -1,12 +1,12 @@
 package com.stockguard.controller;
 
 import com.stockguard.domain.Product;
+import com.stockguard.dto.PagedResponse;
 import com.stockguard.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -19,8 +19,16 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    public PagedResponse<Product> getAllProducts(Pageable pageable) {
+        Page<Product> pageResult = productService.getAllProducts(pageable);
+        return new PagedResponse<>(
+                pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.isLast()
+        );
     }
 
     @GetMapping("/{id}")
@@ -47,8 +55,16 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    public Page<Product> searchProducts(@RequestParam String query,Pageable pageable) {
-        return productService.searchProducts(query,pageable);
+    public PagedResponse<Product> searchProducts(@RequestParam String query,Pageable pageable) {
+        Page<Product> pageResult = productService.searchProducts(query, pageable);
+        return new PagedResponse<>(
+                pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.isLast()
+        );
     }
 
 }

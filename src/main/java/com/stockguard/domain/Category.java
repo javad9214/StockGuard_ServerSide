@@ -29,4 +29,19 @@ public class Category {
 
     @Column(nullable = false)
     private Boolean isDeleted = false;
+
+    @PrePersist
+    public void prePersist() {
+        long now = System.currentTimeMillis();
+        createdAt = now;
+        updatedAt = now;
+        if (isDeleted == null) {
+            isDeleted = false;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = System.currentTimeMillis();
+    }
 }

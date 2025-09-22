@@ -1,18 +1,28 @@
 package com.stockguard.controller;
 
 import com.stockguard.domain.Product;
+import com.stockguard.dto.ApiResponse;
 import com.stockguard.dto.PagedResponse;
+import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.service.ProductService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/products")
+@Validated
 public class ProductController {
 
+    @Autowired
     private final ProductService productService;
 
     public ProductController(ProductService productService) {
@@ -40,19 +50,51 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productService.createProduct(product);
+    public ResponseEntity<ApiResponse<Long>> createProduct(@Valid @RequestBody Product product) {
+        try {
+            Product savedProduct = productService.createProduct(product);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Product created successfully", savedProduct.getId()));
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Product creation failed", "Duplicate product or invalid data"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Product creation failed", "Internal server error"));
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        return ResponseEntity.ok(productService.updateProduct(id, product));
+    public ResponseEntity<ApiResponse<Void>> updateProduct(
+            @PathVariable @Positive Long id,
+            @Valid @RequestBody Product product) {
+        try {
+            productService.updateProduct(id, product);
+            return ResponseEntity.ok(ApiResponse.success("Product updated successfully"));
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Update failed", "Product not found"));
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Update failed", "Invalid data provided"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Update failed", "Internal server error"));
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable @Positive Long id) {
+        try {
+            productService.deleteProduct(id);
+            return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Delete failed", "Product not found"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Delete failed", "Internal server error"));
+        }
     }
 
     @GetMapping("/search")

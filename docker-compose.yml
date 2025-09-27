@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: devuser
       POSTGRES_PASSWORD: devpass
     ports:
-      - "5433:5432"   # host:container
+      - "5433:5432"
     volumes:
       - stockguard_dev_data:/var/lib/postgresql/data
     networks:
@@ -41,6 +41,32 @@ services:
       - stockguard_prod_data:/var/lib/postgresql/data
     networks:
       - stockguard-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.5
+    container_name: stockguard-keycloak
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    networks:
+      - stockguard-network
+
+  stockguard-app:
+    build: .
+    container_name: stockguard-app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+    depends_on:
+      - postgres-dev
+      - keycloak
+    networks:
+      - stockguard-network
+    profiles: ["staging"]
 
 volumes:
   stockguard_dev_data:

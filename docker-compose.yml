@@ -51,6 +51,8 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     ports:
       - "8080:8080"
+    volumes:
+      - /home/sadathosseini/StockGuard/stock-guard/stockguard-keycloak-provider/target/stockguard-keycloak-provider-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/stockguard-keycloak-provider-0.0.1-SNAPSHOT.jar
     networks:
       - stockguard-network
 

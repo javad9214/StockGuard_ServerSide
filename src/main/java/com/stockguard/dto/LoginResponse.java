@@ -5,13 +5,13 @@ import lombok.Data;
 @Data
 public class LoginResponse {
     private String token;
-    private String email;
+    private String phoneNumber;
     private String fullName;
     private String role;
 
-    public LoginResponse(String token, String email, String fullName, String role) {
+    public LoginResponse(String token, String phoneNumber, String fullName, String role) {
         this.token = token;
-        this.email = email;
+        this.phoneNumber = phoneNumber;
         this.fullName = fullName;
         this.role = role;
     }

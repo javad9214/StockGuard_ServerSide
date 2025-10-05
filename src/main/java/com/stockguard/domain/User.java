@@ -1,4 +1,4 @@
-package com.stockguard.model;
+package com.stockguard.domain;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -18,7 +18,7 @@ public class User {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String email;
+    private String phoneNumber;
 
     @Column(nullable = false)
     private String password; // This will be BCrypt hashed

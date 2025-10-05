@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   postgres-dev:
     image: postgres:16
@@ -42,20 +43,6 @@ services:
     networks:
       - stockguard-network
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.3.5
-    container_name: stockguard-keycloak
-    command: start-dev
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-    ports:
-      - "8080:8080"
-    volumes:
-      - /home/sadathosseini/StockGuard/stock-guard/stockguard-keycloak-provider/target/stockguard-keycloak-provider-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/stockguard-keycloak-provider-0.0.1-SNAPSHOT.jar
-    networks:
-      - stockguard-network
-
   stockguard-app:
     build: .
     container_name: stockguard-app
@@ -65,7 +52,6 @@ services:
       SPRING_PROFILES_ACTIVE: dev
     depends_on:
       - postgres-dev
-      - keycloak
     networks:
       - stockguard-network
     profiles: ["staging"]

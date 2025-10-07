@@ -1,8 +1,8 @@
 package com.stockguard.service;
 
-import com.stockguard.dto.LoginRequest;
-import com.stockguard.dto.LoginResponse;
-import com.stockguard.dto.RegisterRequest;
+import com.stockguard.dto.auth.LoginRequest;
+import com.stockguard.dto.auth.LoginResponse;
+import com.stockguard.dto.auth.RegisterRequest;
 
 public interface AuthService {
 

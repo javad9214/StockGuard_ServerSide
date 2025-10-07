@@ -1,4 +1,4 @@
-package com.stockguard.dto;
+package com.stockguard.dto.auth;
 
 import lombok.Data;
 

@@ -1,9 +1,9 @@
 package com.stockguard.service.impl;
 
 
-import com.stockguard.dto.LoginRequest;
-import com.stockguard.dto.LoginResponse;
-import com.stockguard.dto.RegisterRequest;
+import com.stockguard.dto.auth.LoginRequest;
+import com.stockguard.dto.auth.LoginResponse;
+import com.stockguard.dto.auth.RegisterRequest;
 import com.stockguard.domain.User;
 import com.stockguard.repository.UserRepository;
 import com.stockguard.security.JwtUtil;

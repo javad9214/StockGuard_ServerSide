@@ -1,8 +1,8 @@
 package com.stockguard.controller;
 
-import com.stockguard.dto.LoginRequest;
-import com.stockguard.dto.LoginResponse;
-import com.stockguard.dto.RegisterRequest;
+import com.stockguard.dto.auth.LoginRequest;
+import com.stockguard.dto.auth.LoginResponse;
+import com.stockguard.dto.auth.RegisterRequest;
 import com.stockguard.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

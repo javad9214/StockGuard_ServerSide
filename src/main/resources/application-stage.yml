@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/stockguard_stage
-    username: stageuser
-    password: stagepass
+    url: jdbc:postgresql://stockguard:5432/postgres
+    username: root
+    password: UMOWIAK1tXUHUVNVnkLIUfTQ
   jpa:
     hibernate:
       ddl-auto: update

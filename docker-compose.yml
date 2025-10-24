@@ -16,12 +16,13 @@ services:
       - stockguard-network
 
   postgres-stage:
-    image: postgres:16
+    image: postgres:18
     container_name: stockguard-stage-db
     environment:
-      POSTGRES_DB: stockguard_stage
-      POSTGRES_USER: stageuser
-      POSTGRES_PASSWORD: stagepass
+      POSTGRES_DB: postgres
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: UMOWIAK1tXUHUVNVnkLIUfTQ
+    hostname: stockguard
     ports:
       - "5434:5432"
     volumes:
@@ -51,14 +52,14 @@ services:
     environment:
       # Run the Spring 'stage' profile inside the container
       SPRING_PROFILES_ACTIVE: stage
-      # Point the app to the internal Postgres service declared above
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-dev:5432/stockguard_dev"
-      SPRING_DATASOURCE_USERNAME: "devuser"
-      SPRING_DATASOURCE_PASSWORD: "devpass"
+      # Point the app to the stage Postgres service using hostname 'stockguard'
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://stockguard:5432/postgres"
+      SPRING_DATASOURCE_USERNAME: "root"
+      SPRING_DATASOURCE_PASSWORD: "UMOWIAK1tXUHUVNVnkLIUfTQ"
       # Minimal JWT secret for local testing (replace for prod)
       JWT_SECRET: "change_this_jwt_secret"
     depends_on:
-      - postgres-dev
+      - postgres-stage
     networks:
       - stockguard-network
 

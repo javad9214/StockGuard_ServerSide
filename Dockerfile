@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Copy pom.xml and download dependencies (cached layer)
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+# NOTE: removed mvn dependency:go-offline because it can fail on partial downloads in some networks.
+# The package step below will download dependencies as part of the build.
 
 # Copy source code and build
 COPY src ./src

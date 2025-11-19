@@ -1,8 +1,8 @@
 package com.stockguard.controller;
 
-import com.stockguard.domain.Product;
-import com.stockguard.dto.ApiResponse;
-import com.stockguard.dto.PagedResponse;
+import com.stockguard.data.entity.Product;
+import com.stockguard.data.dto.ApiResponse;
+import com.stockguard.data.dto.PagedResponse;
 import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.service.ProductService;
 import jakarta.validation.Valid;

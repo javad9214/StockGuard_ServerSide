@@ -1,6 +1,6 @@
 package com.stockguard.service.impl;
 
-import com.stockguard.domain.Product;
+import com.stockguard.data.entity.Product;
 import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.exception.ProductOperationException;
 import com.stockguard.repository.ProductRepository;

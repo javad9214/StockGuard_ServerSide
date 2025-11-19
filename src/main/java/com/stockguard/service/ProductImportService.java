@@ -2,10 +2,10 @@ package com.stockguard.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stockguard.domain.Category;
-import com.stockguard.domain.Subcategory;
-import com.stockguard.domain.Product;
-import com.stockguard.dto.ProductImportDto;
+import com.stockguard.data.entity.Category;
+import com.stockguard.data.entity.Subcategory;
+import com.stockguard.data.entity.Product;
+import com.stockguard.data.dto.ProductImportDto;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.repository.ProductRepository;

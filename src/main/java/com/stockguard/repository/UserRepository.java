@@ -1,6 +1,6 @@
 package com.stockguard.repository;
 
-import com.stockguard.domain.User;
+import com.stockguard.data.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

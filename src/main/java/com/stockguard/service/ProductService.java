@@ -1,6 +1,6 @@
 package com.stockguard.service;
 
-import com.stockguard.domain.Product;
+import com.stockguard.data.entity.Product;
 
 import java.util.Optional;
 import org.springframework.data.domain.Page;

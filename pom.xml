@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.stockguard</groupId>
 	<artifactId>stock-guard</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>0.1.2</version>
 
 	<name>stock-guard</name>
 	<description>Demo project for Spring Boot</description>

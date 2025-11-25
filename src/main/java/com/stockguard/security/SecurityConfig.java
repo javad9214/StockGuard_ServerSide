@@ -33,6 +33,13 @@ public class SecurityConfig {
                       //  .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
                       //  .requestMatchers("/api/**").permitAll() // Allow all api endpoints temporary
 
+                        // --- Swagger (allow public access) ---
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
                         // Public endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/version/check").permitAll()

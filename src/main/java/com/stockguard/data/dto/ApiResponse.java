@@ -1,4 +1,4 @@
-package com.stockguard.dto;
+package com.stockguard.data.dto;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;

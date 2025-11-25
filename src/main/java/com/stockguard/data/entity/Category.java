@@ -1,4 +1,4 @@
-package com.stockguard.domain;
+package com.stockguard.data.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

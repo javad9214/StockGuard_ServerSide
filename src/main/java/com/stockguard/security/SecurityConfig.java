@@ -1,8 +1,10 @@
 package com.stockguard.security;
 
 import com.stockguard.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -13,10 +15,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
@@ -24,18 +31,24 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                       //  .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
-                        .requestMatchers("/api/**").permitAll() // Allow all api endpoints temporary
-                        .anyRequest().authenticated() // All other endpoints require auth
+                      //  .requestMatchers("/api/**").permitAll() // Allow all api endpoints temporary
+
+                        // Public endpoints
+                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/version/check").permitAll()
+
+                        // Admin endpoints
+                        .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/version/admin/**").hasRole("ADMIN")
+
+                        // All other endpoints require authentication
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
-        return new JwtAuthenticationFilter(jwtUtil, userRepository);
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {

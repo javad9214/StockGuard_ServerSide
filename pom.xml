@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.stockguard</groupId>
 	<artifactId>stock-guard</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.2</version>
 
 	<name>stock-guard</name>
 	<description>Demo project for Spring Boot</description>
@@ -121,22 +121,22 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- JWT (older compatible version) -->
+		<!-- JWT  -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
-			<version>0.11.5</version>
+			<version>0.12.3</version>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-impl</artifactId>
-			<version>0.11.5</version>
+			<version>0.12.3</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-jackson</artifactId>
-			<version>0.11.5</version>
+			<version>0.12.3</version>
 			<scope>runtime</scope>
 		</dependency>
 
@@ -156,12 +156,6 @@
 		</dependency>
 
 
-		<!-- Kavenegar Java SDK -->
-		<dependency>
-			<groupId>com.github.kavenegar</groupId>
-			<artifactId>kavenegar-java</artifactId>
-			<version>v2.0.3</version>
-		</dependency>
 
 	</dependencies>
 

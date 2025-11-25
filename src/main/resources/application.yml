@@ -1,9 +1,9 @@
 # application.yml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/stockguard
-    username: stockuser
-    password: stockpass
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:stockguard}
+    username: ${DB_USER:stockuser}
+    password: ${DB_PASSWORD:stockpass}
 
   jpa:
     hibernate:
@@ -11,10 +11,9 @@ spring:
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-# JWT Configuration
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:local-secret}
   expiration: 86400000
 
 server:
-  port: 8081
+  port: 8080

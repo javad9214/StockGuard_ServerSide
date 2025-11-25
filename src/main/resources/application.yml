@@ -12,7 +12,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 jwt:
-  secret: ${JWT_SECRET:local-secret}
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 server:

@@ -1,9 +1,9 @@
 # application.yml
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:stockguard}
-    username: ${DB_USER:stockuser}
-    password: ${DB_PASSWORD:stockpass}
+    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:

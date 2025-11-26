@@ -50,7 +50,7 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: stage
-      DB_HOST: stockguard-stage
+      DB_HOST: postgres-stage
       DB_NAME: postgres
       DB_USER: root
       DB_PASSWORD: ngxOnzCyA641mQKsHCrUJQ==

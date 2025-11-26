@@ -16,13 +16,12 @@ services:
       - stockguard-network
 
   postgres-stage:
-    image: postgres:18
+    image: postgres:16
     container_name: stockguard-stage-db
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: root
-      POSTGRES_PASSWORD: UMOWIAK1tXUHUVNVnkLIUfTQ
-    hostname: stockguard
+      POSTGRES_PASSWORD: ngxOnzCyA641mQKsHCrUJQ==
     ports:
       - "5434:5432"
     volumes:
@@ -51,7 +50,7 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: stage
-      DB_HOST: stockguard
+      DB_HOST: stockguard-stage
       DB_NAME: postgres
       DB_USER: root
       DB_PASSWORD: ngxOnzCyA641mQKsHCrUJQ==

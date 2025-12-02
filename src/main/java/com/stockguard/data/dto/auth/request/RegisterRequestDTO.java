@@ -19,7 +19,7 @@ public class RegisterRequestDTO {
     private String phoneNumber;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 50, message = "Password must be between 6 and 50 characters")
+    @Size(min = 3, max = 50, message = "Password must be between 6 and 50 characters")
     private String password;
 
     @NotBlank(message = "Full name is required")

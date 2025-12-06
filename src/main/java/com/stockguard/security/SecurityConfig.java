@@ -30,9 +30,6 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                      //  .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
-                      //  .requestMatchers("/api/**").permitAll() // Allow all api endpoints temporary
-
                         // --- Swagger (allow public access) ---
                         .requestMatchers(
                                 "/v3/api-docs/**",
@@ -42,13 +39,19 @@ public class SecurityConfig {
 
                         // Public endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/version/check").permitAll()
+                        .requestMatchers("/ping").permitAll()
 
-                        // Admin endpoints
-                        .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
+                        // Version check endpoints - PUBLIC for all users to check version
+                        .requestMatchers("/api/version/check").permitAll()
+                        .requestMatchers("/api/version/android").permitAll()
+                        .requestMatchers("/api/version/ios").permitAll()
+
+                        // Admin version management endpoints - ADMIN ONLY
                         .requestMatchers("/api/version/admin/**").hasRole("ADMIN")
-                        
-                        .requestMatchers("/ping").permitAll() 
+
+                        // Admin user management endpoints
+                        .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         // All other endpoints require authentication
                         .anyRequest().authenticated()

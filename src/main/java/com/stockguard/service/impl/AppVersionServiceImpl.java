@@ -8,6 +8,7 @@ import com.stockguard.data.entity.AppVersion;
 import com.stockguard.repository.AppVersionRepository;
 import com.stockguard.service.AppVersionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AppVersionServiceImpl implements AppVersionService {
 
@@ -51,9 +53,23 @@ public class AppVersionServiceImpl implements AppVersionService {
     @Transactional(readOnly = true)
     @Override
     public AppVersionResponseDTO getVersionByPlatform(String platform) {
-        AppVersion appVersion = appVersionRepository.findByPlatform(platform)
-                .orElseThrow(() -> new IllegalArgumentException("Version configuration not found for platform: " + platform));
-        return mapToResponseDTO(appVersion);
+        log.info("Fetching version for platform: {}", platform);
+
+        var optionalVersion = appVersionRepository.findByPlatform(platform);
+        if (optionalVersion.isEmpty()) {
+            log.error("Version configuration not found for platform: {}", platform);
+            throw new IllegalArgumentException("Version configuration not found for platform: " + platform);
+        }
+
+        AppVersion appVersion = optionalVersion.get();
+        log.info("Found version: minCode={}, lastCode={}, enabled={}",
+                appVersion.getMinVersionCode(),
+                appVersion.getLastVersionCode(),
+                appVersion.getEnabled());
+
+        AppVersionResponseDTO response = mapToResponseDTO(appVersion);
+        log.info("Mapped response DTO: {}", response);
+        return response;
     }
 
     @Transactional(readOnly = true)

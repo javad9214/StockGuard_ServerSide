@@ -5,6 +5,7 @@ import com.stockguard.data.dto.appversion.AppVersionResponseDTO;
 import com.stockguard.service.AppVersionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/version")
 @RequiredArgsConstructor
+@Slf4j
 public class AppVersionController {
 
     private final AppVersionService appVersionService;
@@ -29,7 +31,11 @@ public class AppVersionController {
      */
     @GetMapping("/android")
     public ResponseEntity<AppVersionResponseDTO> getAndroidVersion() {
+        log.info("GET /api/version/android called"); // <-- log entry
+
         AppVersionResponseDTO response = appVersionService.getVersionByPlatform("ANDROID");
+
+        log.info("GET /api/version/android response: {}", response); // <-- log response
         return ResponseEntity.ok(response);
     }
 

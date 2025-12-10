@@ -1,12 +1,17 @@
 package com.stockguard.controller;
 
-
 import com.stockguard.data.dto.auth.UserDTO;
 import com.stockguard.data.dto.auth.request.ChangePasswordRequestDTO;
 import com.stockguard.data.dto.auth.request.LoginRequestDTO;
+import com.stockguard.data.dto.auth.request.RefreshTokenRequestDTO;
 import com.stockguard.data.dto.auth.request.RegisterRequestDTO;
 import com.stockguard.data.dto.auth.request.UpdateProfileRequestDTO;
 import com.stockguard.data.dto.auth.response.AuthResponseDTO;
+import com.stockguard.data.entity.RefreshToken;
+import com.stockguard.data.entity.User;
+import com.stockguard.repository.UserRepository;
+import com.stockguard.security.JwtUtil;
+import com.stockguard.service.RefreshTokenService;
 import com.stockguard.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,32 +27,50 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final RefreshTokenService refreshTokenService;
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    /**
-     * Register a new user
-     * POST /api/auth/register
-     */
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO requestDTO) {
         AuthResponseDTO response = userService.register(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Login user
-     * POST /api/auth/login
-     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO requestDTO) {
         AuthResponseDTO response = userService.login(requestDTO);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Get current user profile
-     * GET /api/auth/profile
-     * Requires authentication
-     */
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponseDTO> refreshToken(@Valid @RequestBody RefreshTokenRequestDTO request) {
+        String requestRefreshToken = request.getRefreshToken();
+
+        RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken);
+        refreshToken = refreshTokenService.verifyExpiration(refreshToken);
+
+        User user = refreshToken.getUser();
+
+        String newAccessToken = jwtUtil.generateToken(
+                user.getPhoneNumber(),
+                user.getId(),
+                user.getRole().name()
+        );
+
+        RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user, refreshToken.getDeviceId());
+
+        refreshTokenService.revokeToken(requestRefreshToken);
+
+        return ResponseEntity.ok(AuthResponseDTO.builder()
+                .token(newAccessToken)
+                .refreshToken(newRefreshToken.getToken())
+                .tokenType("Bearer")
+                .user(mapToUserDTO(user))
+                .message("Token refreshed successfully")
+                .build());
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<UserDTO> getProfile() {
         Long userId = getCurrentUserId();
@@ -55,11 +78,6 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    /**
-     * Update current user profile
-     * PUT /api/auth/profile
-     * Requires authentication
-     */
     @PutMapping("/profile")
     public ResponseEntity<UserDTO> updateProfile(@Valid @RequestBody UpdateProfileRequestDTO requestDTO) {
         Long userId = getCurrentUserId();
@@ -67,11 +85,6 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    /**
-     * Change password
-     * POST /api/auth/change-password
-     * Requires authentication
-     */
     @PostMapping("/change-password")
     public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePasswordRequestDTO requestDTO) {
         Long userId = getCurrentUserId();
@@ -79,22 +92,12 @@ public class UserController {
         return ResponseEntity.ok("Password changed successfully");
     }
 
-    /**
-     * Admin: Unlock user account
-     * POST /api/auth/admin/unlock/{userId}
-     * Requires ADMIN role
-     */
     @PostMapping("/admin/unlock/{userId}")
     public ResponseEntity<String> unlockAccount(@PathVariable Long userId) {
         userService.unlockAccount(userId);
         return ResponseEntity.ok("Account unlocked successfully");
     }
 
-    /**
-     * Admin: Enable/Disable user account
-     * POST /api/auth/admin/toggle-status/{userId}?enabled=true
-     * Requires ADMIN role
-     */
     @PostMapping("/admin/toggle-status/{userId}")
     public ResponseEntity<String> toggleUserStatus(
             @PathVariable Long userId,
@@ -103,18 +106,26 @@ public class UserController {
         return ResponseEntity.ok("User status updated successfully");
     }
 
-    /**
-     * Helper method to get current authenticated user ID from JWT
-     */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        // This assumes you have a custom UserDetails or the userId is stored in the principal
-        // You'll need to adjust this based on your JWT filter implementation
         if (authentication != null && authentication.getPrincipal() instanceof Long) {
             return (Long) authentication.getPrincipal();
         }
 
         throw new IllegalStateException("User not authenticated");
+    }
+
+    private UserDTO mapToUserDTO(User user) {
+        return UserDTO.builder()
+                .id(user.getId())
+                .phoneNumber(user.getPhoneNumber())
+                .fullName(user.getFullName())
+                .profileImageUrl(user.getProfileImageUrl())
+                .role(user.getRole())
+                .enabled(user.getEnabled())
+                .createdAt(user.getCreatedAt())
+                .lastLogin(user.getLastLogin())
+                .build();
     }
 }

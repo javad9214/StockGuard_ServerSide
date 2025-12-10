@@ -1,19 +1,17 @@
 package com.stockguard.service.impl;
 
-
-
 import com.stockguard.data.dto.auth.UserDTO;
 import com.stockguard.data.dto.auth.request.ChangePasswordRequestDTO;
 import com.stockguard.data.dto.auth.request.LoginRequestDTO;
 import com.stockguard.data.dto.auth.request.RegisterRequestDTO;
 import com.stockguard.data.dto.auth.request.UpdateProfileRequestDTO;
 import com.stockguard.data.dto.auth.response.AuthResponseDTO;
+import com.stockguard.data.entity.RefreshToken;
 import com.stockguard.data.entity.User;
-
 import com.stockguard.repository.UserRepository;
 import com.stockguard.security.JwtUtil;
+import com.stockguard.service.RefreshTokenService;
 import com.stockguard.service.UserService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +28,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
@@ -38,12 +37,10 @@ public class UserServiceImpl implements UserService {
     public AuthResponseDTO register(RegisterRequestDTO requestDTO) {
         log.info("Registering new user with phone: {}", requestDTO.getPhoneNumber());
 
-        // Check if user already exists
         if (userRepository.existsByPhoneNumber(requestDTO.getPhoneNumber())) {
             throw new IllegalArgumentException("Phone number already registered");
         }
 
-        // Create new user
         User user = new User();
         user.setPhoneNumber(requestDTO.getPhoneNumber());
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
@@ -59,15 +56,17 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with ID: {}", savedUser.getId());
 
-        // Generate JWT token
-        String token = jwtUtil.generateToken(
+        String accessToken = jwtUtil.generateToken(
                 savedUser.getPhoneNumber(),
                 savedUser.getId(),
                 savedUser.getRole().name()
         );
 
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser, requestDTO.getDeviceId());
+
         return AuthResponseDTO.builder()
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .user(mapToUserDTO(savedUser))
                 .message("Registration successful")
@@ -79,30 +78,24 @@ public class UserServiceImpl implements UserService {
     public AuthResponseDTO login(LoginRequestDTO requestDTO) {
         log.info("Login attempt for phone: {}", requestDTO.getPhoneNumber());
 
-        // Find user
         User user = userRepository.findByPhoneNumber(requestDTO.getPhoneNumber())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid phone number or password"));
 
-        // Check if account is locked
         if (user.getAccountLocked()) {
             throw new IllegalStateException("Account is locked due to multiple failed login attempts. Please contact support.");
         }
 
-        // Check if account is enabled
         if (!user.getEnabled()) {
             throw new IllegalStateException("Account is disabled. Please contact support.");
         }
 
-        // Verify password
         if (!passwordEncoder.matches(requestDTO.getPassword(), user.getPassword())) {
             handleFailedLogin(user);
             throw new IllegalArgumentException("Invalid phone number or password");
         }
 
-        // Reset failed attempts on successful login
         resetFailedAttempts(user);
 
-        // Update last login and device info
         user.setLastLogin(LocalDateTime.now());
         if (requestDTO.getDeviceToken() != null) {
             user.setDeviceToken(requestDTO.getDeviceToken());
@@ -114,15 +107,17 @@ public class UserServiceImpl implements UserService {
 
         log.info("User logged in successfully: {}", user.getId());
 
-        // Generate JWT token
-        String token = jwtUtil.generateToken(
+        String accessToken = jwtUtil.generateToken(
                 user.getPhoneNumber(),
                 user.getId(),
                 user.getRole().name()
         );
 
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, requestDTO.getDeviceId());
+
         return AuthResponseDTO.builder()
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .user(mapToUserDTO(user))
                 .message("Login successful")
@@ -165,12 +160,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Verify old password
         if (!passwordEncoder.matches(requestDTO.getOldPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Current password is incorrect");
         }
 
-        // Update password
         user.setPassword(passwordEncoder.encode(requestDTO.getNewPassword()));
         userRepository.save(user);
 
@@ -202,8 +195,6 @@ public class UserServiceImpl implements UserService {
 
         log.info("User {} status changed to: {}", userId, enabled ? "enabled" : "disabled");
     }
-
-    // Helper methods
 
     private void handleFailedLogin(User user) {
         int attempts = user.getFailedLoginAttempts() + 1;

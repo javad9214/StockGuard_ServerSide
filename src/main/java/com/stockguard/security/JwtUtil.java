@@ -1,10 +1,7 @@
 package com.stockguard.security;
 
-
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,7 +18,7 @@ public class JwtUtil {
     @Value("${jwt.secret:mySecretKeyThatIsAtLeast256BitsLongForHS256Algorithm12345678}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
+    @Value("${jwt.expiration:900000}") // 15 minutes
     private Long expiration;
 
     private SecretKey getSigningKey() {

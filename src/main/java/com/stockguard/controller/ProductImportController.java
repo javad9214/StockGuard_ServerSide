@@ -12,9 +12,9 @@ public class ProductImportController {
     private final ProductImportService importService;
 
     @PostMapping("/products")
-    public String importProducts(@RequestParam String filePath) {
+    public String importProducts(@RequestParam(defaultValue = "products.json") String fileName) {
         try {
-            importService.importFromJson(filePath);
+            importService.importFromJson(fileName);
             return "Import completed successfully!";
         } catch (Exception e) {
             e.printStackTrace();

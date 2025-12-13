@@ -10,10 +10,11 @@ import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,10 +27,15 @@ public class ProductImportService {
     private final ProductRepository productRepository;
 
     @Transactional
-    public void importFromJson(String filePath) throws Exception {
+    public void importFromJson(String fileName) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
+
+        // Read from classpath (resources folder)
+        ClassPathResource resource = new ClassPathResource("data/" + fileName);
+        InputStream inputStream = resource.getInputStream();
+
         List<ProductImportDto> dtos = mapper.readValue(
-                new File(filePath),
+                inputStream,
                 new TypeReference<List<ProductImportDto>>() {}
         );
 
@@ -48,7 +54,6 @@ public class ProductImportService {
 
             String rawName = dto.getSubcategory();
             final String subcategoryName = (rawName == null || rawName.isBlank()) ? "Unknown" : rawName;
-
 
             // Subcategory
             Subcategory subcategory = subcategoryRepository
@@ -74,5 +79,4 @@ public class ProductImportService {
         // Bulk save all products at once
         productRepository.saveAll(productsToSave);
     }
-
 }

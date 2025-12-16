@@ -19,18 +19,22 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhoneNumber(String phoneNumber);
 
     // Admin queries
-    @Query("SELECT u FROM User u WHERE " +
-            "(:search IS NULL OR " +
-            "u.fullName LIKE CONCAT('%', :search, '%') OR " +
-            "u.phoneNumber LIKE CONCAT('%', :search, '%')) " +
-            "AND (:enabled IS NULL OR u.enabled = :enabled) " +
-            "AND (:locked IS NULL OR u.accountLocked = :locked)")
+    @Query("""
+    SELECT u FROM User u
+    WHERE
+      (:search IS NULL OR
+      u.fullName LIKE %:search% OR
+      u.phoneNumber LIKE %:search%)
+    AND (:enabled IS NULL OR u.enabled = :enabled)
+    AND (:locked IS NULL OR u.accountLocked = :locked)
+    """)
     Page<User> findAllWithFilters(
             @Param("search") String search,
             @Param("enabled") Boolean enabled,
             @Param("locked") Boolean locked,
             Pageable pageable
     );
+
 
     // Statistics queries
     long countByEnabled(Boolean enabled);

@@ -1,6 +1,5 @@
 package com.stockguard.repository;
 
-
 import com.stockguard.data.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +19,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhoneNumber(String phoneNumber);
 
     // Admin queries
-
     @Query("SELECT u FROM User u WHERE " +
-            "(:search IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "(:search IS NULL OR " +
+            "LOWER(CAST(u.fullName AS string)) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(CAST(u.phoneNumber AS string)) LIKE LOWER(CONCAT('%', :search, '%'))) " +
             "AND (:enabled IS NULL OR u.enabled = :enabled) " +
             "AND (:locked IS NULL OR u.accountLocked = :locked)")
     Page<User> findAllWithFilters(
@@ -34,7 +33,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     );
 
     // Statistics queries
-
     long countByEnabled(Boolean enabled);
 
     long countByAccountLocked(Boolean locked);

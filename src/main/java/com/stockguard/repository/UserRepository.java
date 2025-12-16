@@ -21,8 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Admin queries
     @Query("SELECT u FROM User u WHERE " +
             "(:search IS NULL OR " +
-            "LOWER(CAST(u.fullName AS string)) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(CAST(u.phoneNumber AS string)) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "u.fullName LIKE CONCAT('%', :search, '%') OR " +
+            "u.phoneNumber LIKE CONCAT('%', :search, '%')) " +
             "AND (:enabled IS NULL OR u.enabled = :enabled) " +
             "AND (:locked IS NULL OR u.accountLocked = :locked)")
     Page<User> findAllWithFilters(

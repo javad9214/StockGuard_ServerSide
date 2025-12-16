@@ -45,7 +45,12 @@ public class AdminController {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        AdminUserListResponse response = adminService.getAllUsers(pageable, search, enabled, locked);
+        String normalizedSearch =
+                (search == null || search.isBlank()) ? null : search;
+
+        AdminUserListResponse response =
+                adminService.getAllUsers(pageable, normalizedSearch, enabled, locked);
+
         return ResponseEntity.ok(response);
     }
 

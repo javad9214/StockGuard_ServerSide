@@ -29,22 +29,32 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
+                        // Auth endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll()
                         .requestMatchers("/ping").permitAll()
 
+                        // Version check (public)
                         .requestMatchers("/api/version/check").permitAll()
                         .requestMatchers("/api/version/android").permitAll()
                         .requestMatchers("/api/version/ios").permitAll()
 
+                        // Catalog browsing (authenticated users)
+                        .requestMatchers("/api/catalog/**").authenticated()
+
+                        // Admin endpoints
                         .requestMatchers("/api/version/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // User products (authenticated)
+                        .requestMatchers("/api/products/**").authenticated()
 
                         .anyRequest().authenticated()
                 )

@@ -106,6 +106,7 @@ public class UserController {
         return ResponseEntity.ok("User status updated successfully");
     }
 
+    // FIXED: Now principal is userId (Long)
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

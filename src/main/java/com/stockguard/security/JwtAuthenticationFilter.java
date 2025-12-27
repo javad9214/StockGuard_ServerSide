@@ -46,14 +46,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (phoneNumber != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                // Validate token
                 if (jwtUtil.validateToken(token, phoneNumber)) {
 
-                    // Get user from database
                     User user = userRepository.findByPhoneNumber(phoneNumber)
                             .orElseThrow(() -> new RuntimeException("User not found"));
 
-                    // Check if user is enabled and not locked
                     if (!user.getEnabled()) {
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.getWriter().write("Account is disabled");
@@ -66,10 +63,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
 
-                    // Create authentication token
+                    // Store userId as principal (CHANGED)
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
-                                    user.getPhoneNumber(), // Store userId as principal
+                                    user.getId(), // Changed from phoneNumber
                                     null,
                                     Collections.singletonList(
                                             new SimpleGrantedAuthority("ROLE_" + user.getRole().name())

@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;
-import com.stockguard.data.entity.Product;
 import com.stockguard.data.dto.ProductImportDto;
+import com.stockguard.data.entity.UserProduct;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.repository.ProductRepository;
@@ -39,7 +39,7 @@ public class ProductImportService {
                 new TypeReference<List<ProductImportDto>>() {}
         );
 
-        List<Product> productsToSave = new ArrayList<>();
+        List<UserProduct> productsToSave = new ArrayList<>();
 
         for (ProductImportDto dto : dtos) {
 
@@ -67,7 +67,7 @@ public class ProductImportService {
 
             // Product
             if (productRepository.findByBarcode(dto.getBarcode()).isEmpty()) {
-                Product product = Product.builder()
+                UserProduct product = UserProduct.builder()
                         .name(dto.getName())
                         .barcode(dto.getBarcode())
                         .subcategoryId(subcategory.getId())

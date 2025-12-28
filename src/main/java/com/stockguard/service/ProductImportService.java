@@ -3,12 +3,12 @@ package com.stockguard.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockguard.data.entity.Category;
+import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.dto.ProductImportDto;
-import com.stockguard.data.entity.UserProduct;
+import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
-import com.stockguard.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -24,13 +24,12 @@ public class ProductImportService {
 
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
-    private final ProductRepository productRepository;
+    private final CatalogProductRepository catalogProductRepository;
 
     @Transactional
     public void importFromJson(String fileName) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
 
-        // Read from classpath (resources folder)
         ClassPathResource resource = new ClassPathResource("data/" + fileName);
         InputStream inputStream = resource.getInputStream();
 
@@ -39,7 +38,7 @@ public class ProductImportService {
                 new TypeReference<List<ProductImportDto>>() {}
         );
 
-        List<UserProduct> productsToSave = new ArrayList<>();
+        List<CatalogProduct> productsToSave = new ArrayList<>();
 
         for (ProductImportDto dto : dtos) {
 
@@ -65,18 +64,23 @@ public class ProductImportService {
                                     .build()
                     ));
 
-            // Product
-            if (productRepository.findByBarcode(dto.getBarcode()).isEmpty()) {
-                UserProduct product = UserProduct.builder()
-                        .name(dto.getName())
-                        .barcode(dto.getBarcode())
-                        .subcategoryId(subcategory.getId())
-                        .build();
+            // Import to CATALOG (not user products)
+            if (!catalogProductRepository.existsByBarcode(dto.getBarcode())) {
+                CatalogProduct product = new CatalogProduct();
+                product.setName(dto.getName());
+                product.setBarcode(dto.getBarcode());
+                product.setCategory(catName);
+                product.setSubcategory(subcategoryName);
+                product.setStatus(CatalogProduct.CatalogStatus.VERIFIED);
+                product.setIsActive(true);
+                product.setQualityScore(70); // Default import quality
+                product.setAdoptionCount(0);
+
                 productsToSave.add(product);
             }
         }
 
-        // Bulk save all products at once
-        productRepository.saveAll(productsToSave);
+        // Bulk save to catalog
+        catalogProductRepository.saveAll(productsToSave);
     }
 }

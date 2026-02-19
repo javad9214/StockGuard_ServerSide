@@ -51,7 +51,7 @@ public class CatalogProductServiceImpl implements CatalogProductService {
     @Override
     @Transactional(readOnly = true)
     public Page<CatalogProduct> getByCategory(String category, Pageable pageable) {
-        return catalogProductRepository.findByCategoryAndStatusAndIsActiveTrue(
+        return catalogProductRepository.findBySubcategory_Category_NameAndStatusAndIsActiveTrue(
                 category,
                 CatalogProduct.CatalogStatus.VERIFIED,
                 pageable

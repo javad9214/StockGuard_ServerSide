@@ -1,8 +1,10 @@
 package com.stockguard.controller;
 
+import com.stockguard.data.dto.productImporter.ImportResult;
 import com.stockguard.service.ProductImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/import")
@@ -20,5 +22,12 @@ public class ProductImportController {
             e.printStackTrace();
             return "Import failed: " + e.getMessage();
         }
+    }
+
+    @PostMapping("/snapp")
+    public ImportResult importSnapp(
+            @RequestParam("file") MultipartFile file
+    ) {
+        return importService.importFromSnapp(file);
     }
 }

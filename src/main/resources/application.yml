@@ -1,9 +1,14 @@
 # application.yml
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://185.4.16.24:22016/postgres
+    username: root
+    password: ngxOnzCyA641mQKsHCrUJQ==
+
+  logging:
+    level:
+      root: INFO
+      your.package.name: DEBUG
 
   jpa:
     hibernate:

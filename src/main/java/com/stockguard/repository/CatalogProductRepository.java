@@ -23,12 +23,13 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
     // Find by status
     Page<CatalogProduct> findByStatusAndIsActiveTrue(CatalogProduct.CatalogStatus status, Pageable pageable);
 
+    // TODO this query has issues
     // Search catalog
     @Query("SELECT cp FROM CatalogProduct cp WHERE cp.isActive = true " +
             "AND cp.status = 'VERIFIED' " +
             "AND (LOWER(cp.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(cp.brand) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(cp.category) LIKE LOWER(CONCAT('%', :query, '%')))")
+            "OR LOWER(cp.normalizedName) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<CatalogProduct> searchCatalog(@Param("query") String query, Pageable pageable);
 
     // Find similar names (for duplicate detection)
@@ -36,10 +37,12 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
             "AND cp.normalizedName = :normalizedName")
     List<CatalogProduct> findByNormalizedName(@Param("normalizedName") String normalizedName);
 
-    // Get by category
-    Page<CatalogProduct> findByCategoryAndStatusAndIsActiveTrue(String category,
-                                                                CatalogProduct.CatalogStatus status,
-                                                                Pageable pageable);
+    Page<CatalogProduct> findBySubcategory_Category_NameAndStatusAndIsActiveTrue(
+            String categoryName,
+            CatalogProduct.CatalogStatus status,
+            Pageable pageable
+    );
+
 
     // Count by status
     long countByStatus(CatalogProduct.CatalogStatus status);
@@ -53,4 +56,10 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
     @Query("SELECT cp FROM CatalogProduct cp WHERE cp.status = 'PENDING_REVIEW' " +
             "ORDER BY cp.createdAt ASC")
     Page<CatalogProduct> findPendingReview(Pageable pageable);
+
+
+    boolean existsByExternalSourceAndExternalSourceId(
+            String externalSource,
+            Long externalSourceId
+    );
 }

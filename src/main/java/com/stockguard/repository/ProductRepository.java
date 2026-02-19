@@ -12,8 +12,11 @@ import java.util.Optional;
 @Repository
 public interface ProductRepository extends JpaRepository<UserProduct, Long> {
 
+    Optional<UserProduct> findByCatalogProduct_Barcode(String barcode);
 
-    Optional<UserProduct> findByBarcode(String barcode);
-
-    Page<UserProduct> findByNameContainingIgnoreCaseOrBarcodeContaining(String name, String barcode, Pageable pageable);
+    Page<UserProduct> findByCustomNameContainingIgnoreCaseOrCatalogProduct_BarcodeContaining(
+            String name,
+            String barcode,
+            Pageable pageable
+    );
 }

@@ -3,6 +3,7 @@ package com.stockguard.service.impl;
 import com.stockguard.data.entity.RefreshToken;
 import com.stockguard.data.entity.User;
 import com.stockguard.repository.RefreshTokenRepository;
+import com.stockguard.repository.UserRepository;
 import com.stockguard.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,17 +20,25 @@ import java.util.UUID;
 public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
 
-    @Value("${jwt.refresh.expiration:2592000000}") // 30 days in milliseconds
+    @Value("${jwt.refresh.expiration:2592000000}")
     private Long refreshTokenDurationMs;
 
     @Override
     @Transactional
     public RefreshToken createRefreshToken(User user, String deviceId) {
+
+
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+
         RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setUser(user);
+        refreshToken.setUser(managedUser);
         refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000));
+        refreshToken.setExpiryDate(
+                LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000)
+        );
         refreshToken.setDeviceId(deviceId);
         refreshToken.setRevoked(false);
 

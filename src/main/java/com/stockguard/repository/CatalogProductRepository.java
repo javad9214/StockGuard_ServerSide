@@ -20,17 +20,46 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
     // Check barcode exists
     boolean existsByBarcode(String barcode);
 
-    // Find by status
-    Page<CatalogProduct> findByStatusAndIsActiveTrue(CatalogProduct.CatalogStatus status, Pageable pageable);
+    @Query(
+            value = """
+        SELECT p FROM CatalogProduct p
+        JOIN FETCH p.subcategory s
+        JOIN FETCH s.category
+        WHERE p.status = :status AND p.isActive = true
+    """,
+            countQuery = "SELECT COUNT(p) FROM CatalogProduct p WHERE p.status = :status AND p.isActive = true"
+    )
+    Page<CatalogProduct> findByStatusAndIsActiveTrueWithJoins(
+            @Param("status") CatalogProduct.CatalogStatus status,
+            Pageable pageable
+    );
 
-    // TODO this query has issues
-    // Search catalog
-    @Query("SELECT cp FROM CatalogProduct cp WHERE cp.isActive = true " +
-            "AND cp.status = 'VERIFIED' " +
-            "AND (LOWER(cp.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(cp.brand) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(cp.normalizedName) LIKE LOWER(CONCAT('%', :query, '%')))")
+    @Query(
+            value = """
+        SELECT cp FROM CatalogProduct cp
+        JOIN FETCH cp.subcategory s
+        JOIN FETCH s.category
+        WHERE cp.isActive = true
+          AND cp.status = com.stockguard.data.entity.CatalogProduct.CatalogStatus.VERIFIED
+          AND (
+              LOWER(cp.name)           LIKE LOWER(CONCAT('%', :query, '%'))
+              OR LOWER(cp.brand)       LIKE LOWER(CONCAT('%', :query, '%'))
+              OR LOWER(cp.normalizedName) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+    """,
+            countQuery = """
+        SELECT COUNT(cp) FROM CatalogProduct cp
+        WHERE cp.isActive = true
+          AND cp.status = com.stockguard.data.entity.CatalogProduct.CatalogStatus.VERIFIED
+          AND (
+              LOWER(cp.name)              LIKE LOWER(CONCAT('%', :query, '%'))
+              OR LOWER(cp.brand)          LIKE LOWER(CONCAT('%', :query, '%'))
+              OR LOWER(cp.normalizedName) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+    """
+    )
     Page<CatalogProduct> searchCatalog(@Param("query") String query, Pageable pageable);
+
 
     // Find similar names (for duplicate detection)
     @Query("SELECT cp FROM CatalogProduct cp WHERE cp.isActive = true " +

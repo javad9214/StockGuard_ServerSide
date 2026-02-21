@@ -1,5 +1,6 @@
 package com.stockguard.service.impl;
 
+import com.stockguard.data.dto.CatalogProductResponse;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.service.CatalogProductService;
@@ -22,7 +23,7 @@ public class CatalogProductServiceImpl implements CatalogProductService {
     @Override
     @Transactional(readOnly = true)
     public Page<CatalogProduct> getVerifiedProducts(Pageable pageable) {
-        return catalogProductRepository.findByStatusAndIsActiveTrue(
+        return catalogProductRepository.findByStatusAndIsActiveTrueWithJoins(
                 CatalogProduct.CatalogStatus.VERIFIED,
                 pageable
         );
@@ -30,10 +31,13 @@ public class CatalogProductServiceImpl implements CatalogProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CatalogProduct> searchCatalog(String query, Pageable pageable) {
+    public Page<CatalogProductResponse> searchCatalog(String query, Pageable pageable) {
         log.info("Searching catalog with query: {}", query);
-        return catalogProductRepository.searchCatalog(query, pageable);
+        return catalogProductRepository
+                .searchCatalog(query, pageable)
+                .map(CatalogProductResponse::from);
     }
+
 
     @Override
     @Transactional(readOnly = true)

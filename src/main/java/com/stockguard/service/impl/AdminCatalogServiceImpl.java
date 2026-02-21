@@ -29,7 +29,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Override
     @Transactional(readOnly = true)
     public Page<CatalogProduct> getByStatus(CatalogProduct.CatalogStatus status, Pageable pageable) {
-        return catalogProductRepository.findByStatusAndIsActiveTrue(status, pageable);
+        return catalogProductRepository.findByStatusAndIsActiveTrueWithJoins(status, pageable);
     }
 
     @Override

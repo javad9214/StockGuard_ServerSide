@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
+import com.stockguard.data.dto.CatalogProductResponse;
 import com.stockguard.data.dto.PagedResponse;
-import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.service.CatalogProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,107 +17,76 @@ public class CatalogProductController {
 
     private final CatalogProductService catalogProductService;
 
-    /**
-     * Browse all verified catalog products
-     * GET /api/catalog/products
-     */
     @GetMapping("/products")
-    public PagedResponse<CatalogProduct> browseCatalog(
+    public PagedResponse<CatalogProductResponse> browseCatalog(
             @PageableDefault(size = 20) Pageable pageable) {
 
-        Page<CatalogProduct> pageResult = catalogProductService.getVerifiedProducts(pageable);
+        Page<CatalogProductResponse> page = catalogProductService
+                .getVerifiedProducts(pageable)
+                .map(CatalogProductResponse::from);
 
-        return new PagedResponse<>(
-                pageResult.getContent(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return toPagedResponse(page);
     }
 
-    /**
-     * Search catalog products
-     * GET /api/catalog/products/search?q=coca
-     */
     @GetMapping("/products/search")
-    public PagedResponse<CatalogProduct> searchCatalog(
+    public PagedResponse<CatalogProductResponse> searchCatalog(
             @RequestParam String q,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        Page<CatalogProduct> pageResult = catalogProductService.searchCatalog(q, pageable);
+        Page<CatalogProductResponse> page = catalogProductService
+                .searchCatalog(q, pageable);
 
-        return new PagedResponse<>(
-                pageResult.getContent(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return toPagedResponse(page);
     }
 
-    /**
-     * Get catalog product by ID
-     * GET /api/catalog/products/{id}
-     */
     @GetMapping("/products/{id}")
-    public ResponseEntity<CatalogProduct> getCatalogProduct(@PathVariable Long id) {
+    public ResponseEntity<CatalogProductResponse> getCatalogProduct(@PathVariable Long id) {
         return catalogProductService.getCatalogProductById(id)
+                .map(CatalogProductResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * Get catalog products by category
-     * GET /api/catalog/products/category/{category}
-     */
     @GetMapping("/products/category/{category}")
-    public PagedResponse<CatalogProduct> getByCategory(
+    public PagedResponse<CatalogProductResponse> getByCategory(
             @PathVariable String category,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        Page<CatalogProduct> pageResult = catalogProductService.getByCategory(category, pageable);
+        Page<CatalogProductResponse> page = catalogProductService
+                .getByCategory(category, pageable)
+                .map(CatalogProductResponse::from);
 
-        return new PagedResponse<>(
-                pageResult.getContent(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return toPagedResponse(page);
     }
 
-    /**
-     * Get top adopted products
-     * GET /api/catalog/products/popular
-     */
     @GetMapping("/products/popular")
-    public PagedResponse<CatalogProduct> getPopularProducts(
+    public PagedResponse<CatalogProductResponse> getPopularProducts(
             @PageableDefault(size = 20) Pageable pageable) {
 
-        Page<CatalogProduct> pageResult = catalogProductService.getTopAdopted(pageable);
+        Page<CatalogProductResponse> page = catalogProductService
+                .getTopAdopted(pageable)
+                .map(CatalogProductResponse::from);
 
-        return new PagedResponse<>(
-                pageResult.getContent(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return toPagedResponse(page);
     }
 
-    /**
-     * Search by barcode
-     * GET /api/catalog/products/barcode/{barcode}
-     */
     @GetMapping("/products/barcode/{barcode}")
-    public ResponseEntity<CatalogProduct> getByBarcode(@PathVariable String barcode) {
+    public ResponseEntity<CatalogProductResponse> getByBarcode(@PathVariable String barcode) {
         return catalogProductService.getByBarcode(barcode)
+                .map(CatalogProductResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Helper ──────────────────────────────────────────────
+    private <T> PagedResponse<T> toPagedResponse(Page<T> page) {
+        return new PagedResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
     }
 }

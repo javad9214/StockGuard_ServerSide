@@ -1,13 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://185.4.16.24:22016/postgres
-    username: root
-    password: ngxOnzCyA641mQKsHCrUJQ==
-
-  servlet:
-    multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
+    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:

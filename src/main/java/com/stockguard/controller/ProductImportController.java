@@ -3,8 +3,11 @@ package com.stockguard.controller;
 import com.stockguard.data.dto.productImporter.ImportResult;
 import com.stockguard.service.ProductImportService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/import")
@@ -25,9 +28,16 @@ public class ProductImportController {
     }
 
     @PostMapping("/snapp")
-    public ImportResult importSnapp(
+    public ResponseEntity<?> importSnapp(
             @RequestParam("file") MultipartFile file
     ) {
-        return importService.importFromSnapp(file);
+        try {
+            importService.importFromSnapp(file.getInputStream());
+            return ResponseEntity.ok("Snapp import started");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read uploaded file", e);
+        }
     }
+
+
 }

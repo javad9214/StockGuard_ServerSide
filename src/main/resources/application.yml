@@ -1,14 +1,13 @@
-# application.yml
 spring:
   datasource:
     url: jdbc:postgresql://185.4.16.24:22016/postgres
     username: root
     password: ngxOnzCyA641mQKsHCrUJQ==
 
-  logging:
-    level:
-      root: INFO
-      your.package.name: DEBUG
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
 
   jpa:
     hibernate:
@@ -16,11 +15,18 @@ spring:
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
+logging:
+  level:
+    root: INFO
+    com.stockguard: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 900000          # 15 minutes
+  expiration: 900000        # 15 minutes
   refresh:
-      expiration: 2592000000    # 30 days
+    expiration: 2592000000  # 30 days
 
 server:
   port: 8080

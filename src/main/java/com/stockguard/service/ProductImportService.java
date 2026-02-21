@@ -1,11 +1,8 @@
 package com.stockguard.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stockguard.data.dto.productImporter.ImportResult;
-import com.stockguard.data.dto.productImporter.SnappItemDto;
-import com.stockguard.data.dto.productImporter.SnappProductDto;
-import com.stockguard.data.dto.productImporter.SnappRootDto;
+import com.stockguard.data.dto.productImporter.*;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Subcategory;
@@ -18,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -34,169 +30,137 @@ public class ProductImportService {
     private final SubcategoryRepository subcategoryRepository;
     private final CatalogProductRepository catalogProductRepository;
 
+    // ---------------- NORMAL JSON IMPORT ----------------
+
     @Transactional
     public void importFromJson(String fileName) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-
         ClassPathResource resource = new ClassPathResource("data/" + fileName);
         InputStream inputStream = resource.getInputStream();
 
-        List<ProductImportDto> dtos = mapper.readValue(
+        List<ProductImportDto> dtos = objectMapper.readValue(
                 inputStream,
-                new TypeReference<>() {
-                }
+                new com.fasterxml.jackson.core.type.TypeReference<List<ProductImportDto>>() {}
         );
 
-        List<CatalogProduct> productsToSave = new ArrayList<>();
+        log.info("Total products found in JSON: {}", dtos.size());
+
+        int imported = 0, skipped = 0;
 
         for (ProductImportDto dto : dtos) {
 
-            String rawCatName = dto.getCategory();
-            final String catName = (rawCatName == null || rawCatName.isBlank()) ? "Unknown" : rawCatName;
+            if (catalogProductRepository.existsByExternalSourceAndExternalSourceId(
+                    "LOCAL", Long.valueOf(dto.getBarcode()))) {
+                log.debug("Duplicate skipped: barcode={}, name='{}'", dto.getBarcode(), dto.getName());
+                skipped++;
+                continue;
+            }
 
-            // Category
+            String catName = (dto.getCategory() == null || dto.getCategory().isBlank())
+                    ? "Unknown" : dto.getCategory();
+
             Category category = categoryRepository.findByName(catName)
                     .orElseGet(() -> categoryRepository.save(
                             Category.builder().name(catName).build()
                     ));
 
-            String rawName = dto.getSubcategory();
-            final String subcategoryName = (rawName == null || rawName.isBlank()) ? "Unknown" : rawName;
+            String subName = (dto.getSubcategory() == null || dto.getSubcategory().isBlank())
+                    ? "Unknown" : dto.getSubcategory();
 
-            // Subcategory
             Subcategory subcategory = subcategoryRepository
-                    .findByNameAndCategory(subcategoryName, category)
+                    .findByNameAndCategory(subName, category)
                     .orElseGet(() -> subcategoryRepository.save(
-                            Subcategory.builder()
-                                    .name(subcategoryName)
-                                    .category(category)
-                                    .build()
+                            Subcategory.builder().name(subName).category(category).build()
                     ));
 
-            // Import to CATALOG (not user products)
-            if (!catalogProductRepository.existsByBarcode(dto.getBarcode())) {
-                CatalogProduct product = new CatalogProduct();
-                product.setName(dto.getName());
-                product.setBarcode(dto.getBarcode());
-                product.setStatus(CatalogProduct.CatalogStatus.VERIFIED);
-                product.setIsActive(true);
-                product.setQualityScore(70); // Default import quality
-                product.setAdoptionCount(0);
+            CatalogProduct product = CatalogProduct.builder()
+                    .name(dto.getName() != null ? dto.getName() : "بدون نام")
+                    .barcode(dto.getBarcode())
+                    .subcategory(subcategory)
+                    .externalSource("LOCAL")
+                    .externalSourceId(Long.valueOf(dto.getBarcode()))
+                    .status(CatalogProduct.CatalogStatus.VERIFIED)
+                    .isActive(true)
+                    .qualityScore(70)
+                    .adoptionCount(0)
+                    .imageSource("LOCAL")
+                    .build();
 
-                productsToSave.add(product);
-            }
+            catalogProductRepository.save(product);
+            log.info("Imported: barcode={}, name='{}'", dto.getBarcode(), dto.getName());
+            imported++;
         }
 
-        // Bulk save to catalog
-        catalogProductRepository.saveAll(productsToSave);
+        log.info("Done — total: {}, imported: {}, skipped: {}", dtos.size(), imported, skipped);
     }
 
+
+    // ---------------- SNAPP IMPORT ----------------
 
     @Transactional
-    public ImportResult importFromSnapp(MultipartFile file) {
-
-        int created = 0;
-        int skipped = 0;
-        int failed = 0;
-
+    public void importFromSnapp(InputStream inputStream) {
         try {
-            SnappRootDto root = objectMapper.readValue(
-                    file.getInputStream(),
-                    SnappRootDto.class
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            List<SnappProductDto> products = mapper.readValue(
+                    inputStream,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<SnappProductDto>>() {}
             );
 
-            Category category = categoryRepository
-                    .findByName("Snapp Market")
-                    .orElseGet(() ->
-                            categoryRepository.save(
-                                    Category.builder()
-                                            .name("Snapp Market")
-                                            .build()
-                            )
-                    );
+            log.info("Total products found in JSON: {}", products.size());
 
-            for (SnappItemDto item : root.getItems()) {
+            Category category = categoryRepository.findByName("Snapp")
+                    .orElseGet(() -> categoryRepository.save(
+                            Category.builder().name("Snapp").build()
+                    ));
 
-                Subcategory subcategory =
-                        subcategoryRepository
-                                .findByNameAndCategory(item.getTitle(), category)
-                                .orElseGet(() ->
-                                        subcategoryRepository.save(
-                                                Subcategory.builder()
-                                                        .name(item.getTitle())
-                                                        .category(category)
-                                                        .build()
-                                        )
-                                );
+            Subcategory subcategory = subcategoryRepository
+                    .findByNameAndCategory("Snapp", category)
+                    .orElseGet(() -> subcategoryRepository.save(
+                            Subcategory.builder().name("Snapp").category(category).build()
+                    ));
 
-                for (SnappProductDto dto : item.getProducts()) {
-                    try {
-                        if (catalogProductRepository
-                                .existsByExternalSourceAndExternalSourceId(
-                                        "SNAPP_MARKET",
-                                        dto.getId()
-                                )) {
-                            skipped++;
-                            continue;
-                        }
+            int imported = 0, skipped = 0;
 
-                        CatalogProduct product =
-                                mapToCatalogProduct(dto, subcategory);
-
-                        catalogProductRepository.save(product);
-                        created++;
-
-                    } catch (Exception e) {
-                        failed++;
-                        log.error(e.getMessage());
-                    }
+            for (SnappProductDto dto : products) {
+                if (catalogProductRepository.existsByExternalSourceAndExternalSourceId(
+                        "SNAPP_MARKET", dto.getId())) {
+                    log.debug("Duplicate skipped: id={}, title='{}'", dto.getId(), dto.getTitle());
+                    skipped++;
+                    continue;
                 }
+
+                catalogProductRepository.save(mapToCatalogProduct(dto, subcategory));
+                log.info("Imported: id={}, title='{}'", dto.getId(), dto.getTitle());
+                imported++;
             }
 
+            log.info("Done — total: {}, imported: {}, skipped: {}", products.size(), imported, skipped);
+
         } catch (Exception e) {
+            log.error("SNAPP IMPORT FAILED", e);
             throw new RuntimeException("Snapp import failed", e);
         }
-
-        return new ImportResult(created, skipped, failed);
     }
 
-    private CatalogProduct mapToCatalogProduct(
-            SnappProductDto dto,
-            Subcategory subcategory
-    ) {
 
-        String imageUrl =
-                (dto.getImages() != null && !dto.getImages().isEmpty())
-                        ? dto.getImages().get(0).getImage()
-                        : null;
 
+    // ---------------- MAPPER ----------------
+    private CatalogProduct mapToCatalogProduct(SnappProductDto dto, Subcategory subcategory) {
         return CatalogProduct.builder()
-                .name(
-                        dto.getPureTitle() != null
-                                ? dto.getPureTitle()
-                                : dto.getTitle()
-                )
-                .brand(
-                        dto.getBrand() != null
-                                ? dto.getBrand().getTitle()
-                                : null
-                )
-                .subcategory(subcategory)
-                .imageUrl(imageUrl)
-                .imageSource("SNAPP_MARKET")
-                .suggestedPrice(
-                        dto.getDiscounted_price() != null
-                                ? dto.getDiscounted_price().longValue()
-                                : null
-                )
+                .name(dto.getTitle() != null ? dto.getTitle() : "بدون نام")
                 .externalSource("SNAPP_MARKET")
                 .externalSourceId(dto.getId())
+                .suggestedPrice(dto.getFinalPrice() != null ? dto.getFinalPrice() : dto.getPrice())
+                .brand(dto.getBrand())
+                .imageUrl(dto.getImageUrl())
+                .imageSource("SNAPP_MARKET")
+                .subcategory(subcategory)
                 .status(CatalogProduct.CatalogStatus.VERIFIED)
-                .qualityScore(60)
+                .qualityScore(70)
                 .adoptionCount(0)
                 .isActive(true)
                 .build();
     }
 
 }
-

@@ -31,11 +31,10 @@ public class CatalogProductServiceImpl implements CatalogProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CatalogProductResponse> searchCatalog(String query, Pageable pageable) {
+    public Page<CatalogProduct> searchCatalog(String query, Pageable pageable) {
         log.info("Searching catalog with query: {}", query);
         return catalogProductRepository
-                .searchCatalog(query, pageable)
-                .map(CatalogProductResponse::from);
+                .searchCatalog(query, pageable);
     }
 
 

@@ -30,14 +30,18 @@ public class CatalogProductController {
 
     @GetMapping("/products/search")
     public PagedResponse<CatalogProductResponse> searchCatalog(
-            @RequestParam String q,
+            @RequestParam(name = "query", required = false, defaultValue = "") String query,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        Page<CatalogProductResponse> page = catalogProductService
-                .searchCatalog(q, pageable);
+        if (query.isBlank()) {
+            return toPagedResponse(catalogProductService.getVerifiedProducts(pageable)
+                    .map(CatalogProductResponse::from));
+        }
 
-        return toPagedResponse(page);
+        return toPagedResponse(catalogProductService.searchCatalog(query, pageable)
+                .map(CatalogProductResponse::from));
     }
+
 
     @GetMapping("/products/{id}")
     public ResponseEntity<CatalogProductResponse> getCatalogProduct(@PathVariable Long id) {

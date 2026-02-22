@@ -11,7 +11,7 @@ public interface CatalogProductService {
 
     Page<CatalogProduct> getVerifiedProducts(Pageable pageable);
 
-    Page<CatalogProductResponse> searchCatalog(String query, Pageable pageable);
+    Page<CatalogProduct> searchCatalog(String query, Pageable pageable);
 
     Optional<CatalogProduct> getCatalogProductById(Long id);
 

@@ -1,27 +1,39 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://185.4.16.24:22016/postgres
+    username: root
+    password: ngxOnzCyA641mQKsHCrUJQ==
+  hikari:
+    max-lifetime: 18000000
+    idle-timeout: 6000000
+    validation-timeout: 50000
+
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 logging:
   level:
     root: INFO
-    com.stockguard: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql: TRACE
+    com.stockguard: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 900000        # 15 minutes
+  expiration: 900000
   refresh:
-    expiration: 2592000000  # 30 days
+    expiration: 2592000000
 
 server:
   port: 8080

@@ -1,5 +1,6 @@
 package com.stockguard.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockguard.data.dto.productImporter.*;
@@ -14,8 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,72 +29,48 @@ import java.util.List;
 public class ProductImportService {
 
     private final ObjectMapper objectMapper;
+    private final ProductImportTxService txService;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
     private final CatalogProductRepository catalogProductRepository;
 
     // ---------------- NORMAL JSON IMPORT ----------------
 
-    @Transactional
     public void importFromJson(String fileName) throws Exception {
-        ClassPathResource resource = new ClassPathResource("data/" + fileName);
-        InputStream inputStream = resource.getInputStream();
 
-        List<ProductImportDto> dtos = objectMapper.readValue(
-                inputStream,
-                new com.fasterxml.jackson.core.type.TypeReference<List<ProductImportDto>>() {}
-        );
+        List<ProductImportDto> dtos = loadDtos(fileName);
 
-        log.info("Total products found in JSON: {}", dtos.size());
-
-        int imported = 0, skipped = 0;
+        int imported = 0;
+        int failed = 0;
 
         for (ProductImportDto dto : dtos) {
-
-            if (catalogProductRepository.existsByExternalSourceAndExternalSourceId(
-                    "LOCAL", Long.valueOf(dto.getBarcode()))) {
-                log.debug("Duplicate skipped: barcode={}, name='{}'", dto.getBarcode(), dto.getName());
-                skipped++;
-                continue;
+            try {
+                txService.importSingle(dto); // ✅ از Proxy رد می‌شود
+                imported++;
+            } catch (Exception e) {
+                failed++;
+                log.error("❌ Import failed for barcode={}",
+                        dto.getBarcode(), e);
             }
-
-            String catName = (dto.getCategory() == null || dto.getCategory().isBlank())
-                    ? "Unknown" : dto.getCategory();
-
-            Category category = categoryRepository.findByName(catName)
-                    .orElseGet(() -> categoryRepository.save(
-                            Category.builder().name(catName).build()
-                    ));
-
-            String subName = (dto.getSubcategory() == null || dto.getSubcategory().isBlank())
-                    ? "Unknown" : dto.getSubcategory();
-
-            Subcategory subcategory = subcategoryRepository
-                    .findByNameAndCategory(subName, category)
-                    .orElseGet(() -> subcategoryRepository.save(
-                            Subcategory.builder().name(subName).category(category).build()
-                    ));
-
-            CatalogProduct product = CatalogProduct.builder()
-                    .name(dto.getName() != null ? dto.getName() : "بدون نام")
-                    .barcode(dto.getBarcode())
-                    .subcategory(subcategory)
-                    .externalSource("LOCAL")
-                    .externalSourceId(Long.valueOf(dto.getBarcode()))
-                    .status(CatalogProduct.CatalogStatus.VERIFIED)
-                    .isActive(true)
-                    .qualityScore(70)
-                    .adoptionCount(0)
-                    .imageSource("LOCAL")
-                    .build();
-
-            catalogProductRepository.save(product);
-            log.info("Imported: barcode={}, name='{}'", dto.getBarcode(), dto.getName());
-            imported++;
         }
 
-        log.info("Done — total: {}, imported: {}, skipped: {}", dtos.size(), imported, skipped);
+        log.info("🏁 Import finished. total={}, imported={}, failed={}",
+                dtos.size(), imported, failed);
     }
+
+    private List<ProductImportDto> loadDtos(String fileName) throws IOException {
+        try (InputStream is =
+                     new ClassPathResource("data/" + fileName).getInputStream()) {
+            return objectMapper.readValue(
+                    is,
+                    new TypeReference<>() {
+                    }
+            );
+        }
+    }
+
+
+
 
 
     // ---------------- SNAPP IMPORT ----------------

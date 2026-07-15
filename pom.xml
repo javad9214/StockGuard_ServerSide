@@ -6,11 +6,11 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.5</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>com.stockguard</groupId>
 	<artifactId>stock-guard</artifactId>
-	<version>0.2.3</version>
+	<version>0.4.1</version>
 	<name>stock-guard</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>

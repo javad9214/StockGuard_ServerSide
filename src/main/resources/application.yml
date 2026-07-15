@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://185.4.16.24:22016/postgres
-    username: root
-    password: ngxOnzCyA641mQKsHCrUJQ==
+    url: jdbc:postgresql://127.0.0.1:5432/stockguard
+    username: stockguard_user
+    password: YQZ4JrRP/nVyGN+LHCAeUuQgfSB9SJ/1
   hikari:
     max-lifetime: 18000000
     idle-timeout: 6000000

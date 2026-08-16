@@ -41,7 +41,11 @@ public class UserProduct {
     private Long costPrice; // User's cost price
 
     private String description;
-    private String image;
+
+    @Column(name = "image", columnDefinition = "bytea")
+    private byte[] image;
+
+    private String imageType;
 
     private Integer subcategoryId;
     private Integer supplierId;

@@ -2,6 +2,7 @@ package com.stockguard.controller;
 
 import com.stockguard.data.dto.ApiResponse;
 import com.stockguard.data.dto.PagedResponse;
+import com.stockguard.data.dto.UserProductDTO;
 import com.stockguard.data.entity.UserProduct;
 import com.stockguard.service.UserProductService;
 import jakarta.validation.Valid;
@@ -10,10 +11,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
@@ -57,11 +60,13 @@ public class UserProductController {
      * Create custom product
      * POST /api/products
      */
-    @PostMapping
-    public ResponseEntity<ApiResponse<Long>> createCustomProduct(@Valid @RequestBody UserProduct product) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Long>> createCustomProduct(
+            @Valid @RequestPart("product") UserProductDTO product,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
             Long userId = getCurrentUserId();
-            UserProduct saved = userProductService.createCustomProduct(userId, product);
+            UserProduct saved = userProductService.createCustomProduct(userId, product, image);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Product created successfully", saved.getId()));
@@ -71,17 +76,14 @@ public class UserProductController {
         }
     }
 
-    /**
-     * Adopt catalog product
-     * POST /api/products/adopt/{catalogProductId}
-     */
-    @PostMapping("/adopt/{catalogProductId}")
+    @PostMapping(value = "/adopt/{catalogProductId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Long>> adoptCatalogProduct(
             @PathVariable Long catalogProductId,
-            @Valid @RequestBody UserProduct productData) {
+            @Valid @RequestPart("product") UserProductDTO productData,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
             Long userId = getCurrentUserId();
-            UserProduct adopted = userProductService.adoptCatalogProduct(userId, catalogProductId, productData);
+            UserProduct adopted = userProductService.adoptCatalogProduct(userId, catalogProductId, productData, image);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Product adopted successfully", adopted.getId()));
@@ -94,17 +96,14 @@ public class UserProductController {
         }
     }
 
-    /**
-     * Update product
-     * PUT /api/products/{id}
-     */
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody UserProduct product) {
+            @Valid @RequestPart("product") UserProductDTO product,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
             Long userId = getCurrentUserId();
-            userProductService.updateUserProduct(userId, id, product);
+            userProductService.updateUserProduct(userId, id, product, image);
 
             return ResponseEntity.ok(ApiResponse.success("Product updated successfully"));
         } catch (IllegalArgumentException e) {

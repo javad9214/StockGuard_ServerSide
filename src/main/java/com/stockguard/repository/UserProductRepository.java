@@ -22,7 +22,8 @@ public interface UserProductRepository extends JpaRepository<UserProduct, Long> 
     // Search user's products
     @Query("SELECT up FROM UserProduct up WHERE up.userId = :userId AND up.isDeleted = false " +
             "AND (LOWER(up.customName) LIKE LOWER(CONCAT('%', :query, '%')) " +
-            "OR LOWER(up.catalogProduct.name) LIKE LOWER(CONCAT('%', :query, '%')))")
+            "OR LOWER(up.catalogProduct.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(up.barcode) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<UserProduct> searchUserProducts(@Param("userId") Long userId,
                                          @Param("query") String query,
                                          Pageable pageable);

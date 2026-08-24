@@ -13,7 +13,11 @@ import java.time.LocalDateTime;
 @Table(name = "user_products", indexes = {
         @Index(name = "idx_user_id", columnList = "userId"),
         @Index(name = "idx_catalog_product_id", columnList = "catalogProductId"),
-        @Index(name = "idx_user_catalog", columnList = "userId,catalogProductId")
+        @Index(name = "idx_user_catalog", columnList = "userId,catalogProductId"),
+        // Non-unique on purpose: a barcode is searchable data, not an identity
+        // key — several rows (even one user's) may legitimately share one.
+        // Global product identity is enforced on catalog_products.barcode.
+        @Index(name = "idx_user_products_barcode", columnList = "barcode")
 })
 @Data
 @NoArgsConstructor
@@ -32,7 +36,6 @@ public class UserProduct {
     @JoinColumn(name = "catalogProductId")
     private CatalogProduct catalogProduct;
 
-    @Column(unique = true)
     private String barcode;
 
     private String customName; // Overrides catalog name

@@ -59,6 +59,8 @@ public class UserProductServiceImpl implements UserProductService {
         product.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         product.setTags(dto.getTags());
         product.setIsDeleted(false);
+        // Persisted server-side → confirmed write
+        product.setSynced(true);
 
         if (image != null && !image.isEmpty()) {
             product.setImage(image.getBytes());
@@ -100,6 +102,8 @@ public class UserProductServiceImpl implements UserProductService {
         userProduct.setUnit(dto.getUnit());
         userProduct.setSupplierId(dto.getSupplierId());
         userProduct.setIsDeleted(false);
+        // Persisted server-side → confirmed write
+        userProduct.setSynced(true);
 
         if (image != null && !image.isEmpty()) {
             userProduct.setImage(image.getBytes());
@@ -129,14 +133,31 @@ public class UserProductServiceImpl implements UserProductService {
         if (dto.getBarcode() != null) {
             existing.setBarcode(dto.getBarcode());
         }
-        existing.setPrice(dto.getPrice());
-        existing.setCostPrice(dto.getCostPrice());
-        existing.setStock(dto.getStock());
-        existing.setMinStockLevel(dto.getMinStockLevel());
-        existing.setMaxStockLevel(dto.getMaxStockLevel());
-        existing.setUnit(dto.getUnit());
-        existing.setSupplierId(dto.getSupplierId());
-        existing.setIsActive(dto.getIsActive());
+        // NOT NULL columns — only overwrite when the client sent a value
+        if (dto.getPrice() != null) {
+            existing.setPrice(dto.getPrice());
+        }
+        if (dto.getCostPrice() != null) {
+            existing.setCostPrice(dto.getCostPrice());
+        }
+        if (dto.getStock() != null) {
+            existing.setStock(dto.getStock());
+        }
+        if (dto.getMinStockLevel() != null) {
+            existing.setMinStockLevel(dto.getMinStockLevel());
+        }
+        if (dto.getMaxStockLevel() != null) {
+            existing.setMaxStockLevel(dto.getMaxStockLevel());
+        }
+        if (dto.getUnit() != null) {
+            existing.setUnit(dto.getUnit());
+        }
+        if (dto.getSupplierId() != null) {
+            existing.setSupplierId(dto.getSupplierId());
+        }
+        if (dto.getIsActive() != null) {
+            existing.setIsActive(dto.getIsActive());
+        }
 
         if (dto.getDescription() != null) {
             existing.setDescription(dto.getDescription());
@@ -148,6 +169,8 @@ public class UserProductServiceImpl implements UserProductService {
             existing.setImage(image.getBytes());
             existing.setImageType(image.getContentType());
         }
+        // Persisted server-side → confirmed write
+        existing.setSynced(true);
 
         UserProduct updated = userProductRepository.save(existing);
         log.info("Product updated successfully");

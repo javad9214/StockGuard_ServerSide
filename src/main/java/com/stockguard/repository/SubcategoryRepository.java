@@ -18,4 +18,8 @@ public interface SubcategoryRepository extends JpaRepository<Subcategory, Intege
     // Bulk load subcategories with their category in one query (avoids N+1 when mapping lists)
     @Query("SELECT DISTINCT s FROM Subcategory s LEFT JOIN FETCH s.category WHERE s.id IN :ids")
     List<Subcategory> findWithCategoryByIdIn(@Param("ids") Collection<Integer> ids);
+
+    // All live subcategories with their category fetched, for the category picker
+    @Query("SELECT DISTINCT s FROM Subcategory s JOIN FETCH s.category WHERE s.isDeleted = false ORDER BY s.name")
+    List<Subcategory> findByIsDeletedFalseWithCategory();
 }

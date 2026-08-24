@@ -32,6 +32,9 @@ public class UserProduct {
     @JoinColumn(name = "catalogProductId")
     private CatalogProduct catalogProduct;
 
+    @Column(unique = true)
+    private String barcode;
+
     private String customName; // Overrides catalog name
 
     @Column(nullable = false)

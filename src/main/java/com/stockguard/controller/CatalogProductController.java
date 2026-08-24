@@ -1,6 +1,6 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.CatalogProductResponse;
+import com.stockguard.data.dto.CatalogProductResponseDTO;
 import com.stockguard.data.dto.PagedResponse;
 import com.stockguard.service.CatalogProductService;
 import lombok.RequiredArgsConstructor;
@@ -20,44 +20,44 @@ public class CatalogProductController {
     private final CatalogProductService catalogProductService;
 
     @GetMapping("/products")
-    public PagedResponse<CatalogProductResponse> browseCatalog(
+    public PagedResponse<CatalogProductResponseDTO> browseCatalog(
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.info("📋 Browsing catalog - page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<CatalogProductResponse> page = catalogProductService
+        Page<CatalogProductResponseDTO> page = catalogProductService
                 .getVerifiedProducts(pageable)
-                .map(CatalogProductResponse::from);
+                .map(CatalogProductResponseDTO::from);
 
         log.info("✅ Retrieved {} products (total: {})", page.getNumberOfElements(), page.getTotalElements());
         return toPagedResponse(page);
     }
 
     @GetMapping("/products/search")
-    public PagedResponse<CatalogProductResponse> searchCatalog(
+    public PagedResponse<CatalogProductResponseDTO> searchCatalog(
             @RequestParam(name = "query", required = false, defaultValue = "") String query,
             @PageableDefault(size = 20) Pageable pageable) {
 
         if (query.isBlank()) {
             log.info("🔍 Search with empty query, returning all verified products");
             return toPagedResponse(catalogProductService.getVerifiedProducts(pageable)
-                    .map(CatalogProductResponse::from));
+                    .map(CatalogProductResponseDTO::from));
         }
 
         log.info("🔍 Searching catalog: '{}' - page: {}", query, pageable.getPageNumber());
-        Page<CatalogProductResponse> results = catalogProductService.searchCatalog(query, pageable)
-                .map(CatalogProductResponse::from);
+        Page<CatalogProductResponseDTO> results = catalogProductService.searchCatalog(query, pageable)
+                .map(CatalogProductResponseDTO::from);
 
         log.info("✅ Found {} results for '{}'", results.getTotalElements(), query);
         return toPagedResponse(results);
     }
 
     @GetMapping("/products/{id}")
-    public ResponseEntity<CatalogProductResponse> getCatalogProduct(@PathVariable Long id) {
+    public ResponseEntity<CatalogProductResponseDTO> getCatalogProduct(@PathVariable Long id) {
         log.info("🔎 Fetching product by ID: {}", id);
 
         return catalogProductService.getCatalogProductById(id)
-                .map(CatalogProductResponse::from)
+                .map(CatalogProductResponseDTO::from)
                 .map(product -> {
                     log.info("✅ Product found: {} ({})", product.getName(), id);
                     return ResponseEntity.ok(product);
@@ -69,40 +69,40 @@ public class CatalogProductController {
     }
 
     @GetMapping("/products/category/{category}")
-    public PagedResponse<CatalogProductResponse> getByCategory(
+    public PagedResponse<CatalogProductResponseDTO> getByCategory(
             @PathVariable String category,
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.info("📂 Fetching products by category: '{}'", category);
 
-        Page<CatalogProductResponse> page = catalogProductService
+        Page<CatalogProductResponseDTO> page = catalogProductService
                 .getByCategory(category, pageable)
-                .map(CatalogProductResponse::from);
+                .map(CatalogProductResponseDTO::from);
 
         log.info("✅ Found {} products in category '{}'", page.getTotalElements(), category);
         return toPagedResponse(page);
     }
 
     @GetMapping("/products/popular")
-    public PagedResponse<CatalogProductResponse> getPopularProducts(
+    public PagedResponse<CatalogProductResponseDTO> getPopularProducts(
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.info("⭐ Fetching popular products");
 
-        Page<CatalogProductResponse> page = catalogProductService
+        Page<CatalogProductResponseDTO> page = catalogProductService
                 .getTopAdopted(pageable)
-                .map(CatalogProductResponse::from);
+                .map(CatalogProductResponseDTO::from);
 
         log.info("✅ Retrieved {} popular products", page.getNumberOfElements());
         return toPagedResponse(page);
     }
 
     @GetMapping("/products/barcode/{barcode}")
-    public ResponseEntity<CatalogProductResponse> getByBarcode(@PathVariable String barcode) {
+    public ResponseEntity<CatalogProductResponseDTO> getByBarcode(@PathVariable String barcode) {
         log.info("🏷️ Searching by barcode: {}", barcode);
 
         return catalogProductService.getByBarcode(barcode)
-                .map(CatalogProductResponse::from)
+                .map(CatalogProductResponseDTO::from)
                 .map(product -> {
                     log.info("✅ Product found by barcode: {}", product.getName());
                     return ResponseEntity.ok(product);

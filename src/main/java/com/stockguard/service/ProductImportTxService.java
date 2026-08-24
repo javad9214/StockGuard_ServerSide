@@ -1,6 +1,6 @@
 package com.stockguard.service;
 
-import com.stockguard.data.dto.ProductImportDto;
+import com.stockguard.data.dto.ProductImportDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;
@@ -23,7 +23,7 @@ public class ProductImportTxService {
     private final SubcategoryRepository subcategoryRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void importSingle(ProductImportDto dto) {
+    public void importSingle(ProductImportDTO dto) {
 
         String cleanBarcode = normalizeBarcode(dto.getBarcode());
         Long externalId = Long.parseLong(cleanBarcode);

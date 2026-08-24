@@ -7,7 +7,7 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 @Getter
 @Builder
-public class CatalogProductResponse {
+public class CatalogProductResponseDTO {
 
     private Long id;
     private String name;
@@ -46,8 +46,8 @@ public class CatalogProductResponse {
     private LocalDateTime updatedAt;
 
     // Mapper
-    public static CatalogProductResponse from(CatalogProduct p) {
-        return CatalogProductResponse.builder()
+    public static CatalogProductResponseDTO from(CatalogProduct p) {
+        return CatalogProductResponseDTO.builder()
                 .id(p.getId())
                 .name(p.getName())
                 .barcode(p.getBarcode())

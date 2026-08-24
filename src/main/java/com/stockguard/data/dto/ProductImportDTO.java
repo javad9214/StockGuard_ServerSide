@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductImportDto {
+public class ProductImportDTO {
     private String name;
     private String  barcode;
     private String category;

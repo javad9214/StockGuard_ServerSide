@@ -1,5 +1,7 @@
 package com.stockguard.data.dto;
 
+import com.stockguard.data.entity.Category;
+import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.entity.UserProduct;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,7 +17,7 @@ import java.util.Base64;
  */
 @Getter
 @Builder
-public class UserProductResponse {
+public class UserProductResponseDTO {
 
     private Long id;
     private Long userId;
@@ -31,6 +33,9 @@ public class UserProductResponse {
     private String image; // Base64-encoded image bytes
 
     private Integer subcategoryId;
+    private Integer categoryId;
+    private String subcategoryName;
+    private String categoryName;
     private Integer supplierId;
 
     private String unit;
@@ -47,8 +52,17 @@ public class UserProductResponse {
     private LocalDateTime updatedAt;
 
     // Mapper
-    public static UserProductResponse from(UserProduct p) {
-        return UserProductResponse.builder()
+    public static UserProductResponseDTO from(UserProduct p) {
+        return from(p, null);
+    }
+
+    /**
+     * @param subcategory resolved subcategory (with its category) used to fill
+     *                    the name fields; may be null when none is linked
+     */
+    public static UserProductResponseDTO from(UserProduct p, Subcategory subcategory) {
+        Category category = subcategory != null ? subcategory.getCategory() : null;
+        return UserProductResponseDTO.builder()
                 .id(p.getId())
                 .userId(p.getUserId())
                 .catalogProductId(p.getCatalogProduct() != null ? p.getCatalogProduct().getId() : null)
@@ -59,7 +73,10 @@ public class UserProductResponse {
                 .description(p.getDescription())
                 .imageType(p.getImageType())
                 .image(p.getImage() != null ? Base64.getEncoder().encodeToString(p.getImage()) : null)
-                .subcategoryId(p.getSubcategoryId())
+                .subcategoryId(subcategory != null ? subcategory.getId() : p.getSubcategoryId())
+                .categoryId(category != null ? category.getId() : null)
+                .subcategoryName(subcategory != null ? subcategory.getName() : null)
+                .categoryName(category != null ? category.getName() : null)
                 .supplierId(p.getSupplierId())
                 .unit(p.getUnit())
                 .stock(p.getStock())

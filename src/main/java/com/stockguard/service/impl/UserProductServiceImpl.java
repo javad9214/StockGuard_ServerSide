@@ -1,9 +1,12 @@
 package com.stockguard.service.impl;
 
 import com.stockguard.data.dto.UserProductDTO;
+import com.stockguard.data.dto.UserProductResponseDTO;
 import com.stockguard.data.entity.CatalogProduct;
+import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.entity.UserProduct;
 import com.stockguard.repository.CatalogProductRepository;
+import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.repository.UserProductRepository;
 import com.stockguard.service.UserProductService;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,17 +34,21 @@ public class UserProductServiceImpl implements UserProductService {
 
     private final UserProductRepository userProductRepository;
     private final CatalogProductRepository catalogProductRepository;
+    private final SubcategoryRepository subcategoryRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserProduct> getUserProducts(Long userId, Pageable pageable) {
-        return userProductRepository.findByUserIdAndIsDeletedFalse(userId, pageable);
+    public Page<UserProductResponseDTO> getUserProducts(Long userId, Pageable pageable) {
+        Page<UserProduct> products = userProductRepository.findByUserIdAndIsDeletedFalse(userId, pageable);
+        Map<Integer, Subcategory> subcategoriesById = findSubcategoriesWithCategory(products.getContent());
+        return products.map(p -> toResponse(p, subcategoriesById));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserProduct> getUserProductById(Long userId, Long productId) {
-        return userProductRepository.findByIdAndUserId(productId, userId);
+    public Optional<UserProductResponseDTO> getUserProductById(Long userId, Long productId) {
+        return userProductRepository.findByIdAndUserId(productId, userId)
+                .map(p -> toResponse(p, findSubcategoriesWithCategory(List.of(p))));
     }
 
     @Override
@@ -92,6 +106,10 @@ public class UserProductServiceImpl implements UserProductService {
         UserProduct userProduct = new UserProduct();
         userProduct.setUserId(userId);
         userProduct.setCatalogProduct(catalogProduct);
+        // Denormalize the subcategory so reads resolve the category without touching the catalog
+        if (catalogProduct.getSubcategory() != null) {
+            userProduct.setSubcategoryId(catalogProduct.getSubcategory().getId());
+        }
         // Prefer an explicitly provided barcode; fall back to the catalog product's
         userProduct.setBarcode(dto.getBarcode() != null ? dto.getBarcode() : catalogProduct.getBarcode());
         userProduct.setPrice(dto.getPrice());
@@ -194,12 +212,52 @@ public class UserProductServiceImpl implements UserProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserProduct> searchUserProducts(Long userId, String query, Pageable pageable) {
-        return userProductRepository.searchUserProducts(userId, query, pageable);
+    public Page<UserProductResponseDTO> searchUserProducts(Long userId, String query, Pageable pageable) {
+        Page<UserProduct> products = userProductRepository.searchUserProducts(userId, query, pageable);
+        Map<Integer, Subcategory> subcategoriesById = findSubcategoriesWithCategory(products.getContent());
+        return products.map(p -> toResponse(p, subcategoriesById));
     }
 
     @Override
     public UserProduct uploadProductImage(Long userId, Long productId, byte[] image, String imageType) {
+        return null;
+    }
+
+    /**
+     * Resolves the subcategories referenced by the products' denormalized
+     * subcategoryId column in a single query (with categories fetched), so
+     * mapping a page never triggers per-row lookups.
+     */
+    private Map<Integer, Subcategory> findSubcategoriesWithCategory(Collection<UserProduct> products) {
+        Set<Integer> ids = products.stream()
+                .map(UserProduct::getSubcategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+
+        return subcategoryRepository.findWithCategoryByIdIn(ids).stream()
+                .collect(Collectors.toMap(Subcategory::getId, Function.identity()));
+    }
+
+    private UserProductResponseDTO toResponse(UserProduct product, Map<Integer, Subcategory> subcategoriesById) {
+        return UserProductResponseDTO.from(product, resolveSubcategory(product, subcategoriesById));
+    }
+
+    /**
+     * Custom products carry their subcategory in the subcategoryId column;
+     * products adopted before that column was populated fall back to the
+     * catalog product's subcategory (lazy load, safe inside the transaction).
+     */
+    private Subcategory resolveSubcategory(UserProduct product, Map<Integer, Subcategory> subcategoriesById) {
+        if (product.getSubcategoryId() != null) {
+            return subcategoriesById.get(product.getSubcategoryId());
+        }
+        if (product.getCatalogProduct() != null) {
+            return product.getCatalogProduct().getSubcategory();
+        }
         return null;
     }
 }

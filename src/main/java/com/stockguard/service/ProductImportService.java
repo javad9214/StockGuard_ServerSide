@@ -7,7 +7,7 @@ import com.stockguard.data.dto.productImporter.*;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Subcategory;
-import com.stockguard.data.dto.ProductImportDto;
+import com.stockguard.data.dto.ProductImportDTO;
 import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
@@ -15,12 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -38,12 +36,12 @@ public class ProductImportService {
 
     public void importFromJson(String fileName) throws Exception {
 
-        List<ProductImportDto> dtos = loadDtos(fileName);
+        List<ProductImportDTO> dtos = loadDtos(fileName);
 
         int imported = 0;
         int failed = 0;
 
-        for (ProductImportDto dto : dtos) {
+        for (ProductImportDTO dto : dtos) {
             try {
                 txService.importSingle(dto); // ✅ از Proxy رد می‌شود
                 imported++;
@@ -58,7 +56,7 @@ public class ProductImportService {
                 dtos.size(), imported, failed);
     }
 
-    private List<ProductImportDto> loadDtos(String fileName) throws IOException {
+    private List<ProductImportDTO> loadDtos(String fileName) throws IOException {
         try (InputStream is =
                      new ClassPathResource("data/" + fileName).getInputStream()) {
             return objectMapper.readValue(

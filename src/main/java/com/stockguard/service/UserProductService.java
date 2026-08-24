@@ -1,6 +1,7 @@
 package com.stockguard.service;
 
 import com.stockguard.data.dto.UserProductDTO;
+import com.stockguard.data.dto.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,9 +12,9 @@ import java.util.Optional;
 
 public interface UserProductService {
 
-    Page<UserProduct> getUserProducts(Long userId, Pageable pageable);
+    Page<UserProductResponseDTO> getUserProducts(Long userId, Pageable pageable);
 
-    Optional<UserProduct> getUserProductById(Long userId, Long productId);
+    Optional<UserProductResponseDTO> getUserProductById(Long userId, Long productId);
 
     UserProduct createCustomProduct(Long userId, UserProductDTO productDTO, MultipartFile image) throws IOException;
 
@@ -23,7 +24,7 @@ public interface UserProductService {
 
     void deleteUserProduct(Long userId, Long productId);
 
-    Page<UserProduct> searchUserProducts(Long userId, String query, Pageable pageable);
+    Page<UserProductResponseDTO> searchUserProducts(Long userId, String query, Pageable pageable);
 
     UserProduct uploadProductImage(Long userId, Long productId, byte[] image, String imageType);
 }

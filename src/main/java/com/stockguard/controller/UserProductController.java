@@ -3,7 +3,7 @@ package com.stockguard.controller;
 import com.stockguard.data.dto.ApiResponse;
 import com.stockguard.data.dto.PagedResponse;
 import com.stockguard.data.dto.UserProductDTO;
-import com.stockguard.data.dto.UserProductResponse;
+import com.stockguard.data.dto.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
 import com.stockguard.service.UserProductService;
 import jakarta.validation.Valid;
@@ -31,11 +31,10 @@ public class UserProductController {
      * GET /api/products
      */
     @GetMapping
-    public PagedResponse<UserProductResponse> getUserProducts(@PageableDefault(size = 20) Pageable pageable) {
+    public PagedResponse<UserProductResponseDTO> getUserProducts(@PageableDefault(size = 20) Pageable pageable) {
         Long userId = getCurrentUserId();
-        Page<UserProduct> pageResult = userProductService.getUserProducts(userId, pageable);
+        Page<UserProductResponseDTO> page = userProductService.getUserProducts(userId, pageable);
 
-        Page<UserProductResponse> page = pageResult.map(UserProductResponse::from);
         return new PagedResponse<>(
                 page.getContent(),
                 page.getNumber(),
@@ -51,10 +50,9 @@ public class UserProductController {
      * GET /api/products/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserProductResponse> getProductById(@PathVariable Long id) {
+    public ResponseEntity<UserProductResponseDTO> getProductById(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         return userProductService.getUserProductById(userId, id)
-                .map(UserProductResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -143,13 +141,12 @@ public class UserProductController {
      * GET /api/products/search?query=coca
      */
     @GetMapping("/search")
-    public PagedResponse<UserProductResponse> searchProducts(
+    public PagedResponse<UserProductResponseDTO> searchProducts(
             @RequestParam String query,
             @PageableDefault(size = 20) Pageable pageable) {
         Long userId = getCurrentUserId();
-        Page<UserProduct> pageResult = userProductService.searchUserProducts(userId, query, pageable);
+        Page<UserProductResponseDTO> page = userProductService.searchUserProducts(userId, query, pageable);
 
-        Page<UserProductResponse> page = pageResult.map(UserProductResponse::from);
         return new PagedResponse<>(
                 page.getContent(),
                 page.getNumber(),

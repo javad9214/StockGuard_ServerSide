@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class UserProductDTO {
     private Long catalogProductId; // null = custom product
+    private String barcode;
     private String customName;
     private Long price;
     private Long costPrice;

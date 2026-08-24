@@ -45,6 +45,7 @@ public class UserProductServiceImpl implements UserProductService {
         UserProduct product = new UserProduct();
         product.setUserId(userId);
         product.setCatalogProduct(null); // Custom product
+        product.setBarcode(dto.getBarcode());
         product.setCustomName(dto.getCustomName());
         product.setPrice(dto.getPrice());
         product.setCostPrice(dto.getCostPrice());
@@ -89,6 +90,8 @@ public class UserProductServiceImpl implements UserProductService {
         UserProduct userProduct = new UserProduct();
         userProduct.setUserId(userId);
         userProduct.setCatalogProduct(catalogProduct);
+        // Prefer an explicitly provided barcode; fall back to the catalog product's
+        userProduct.setBarcode(dto.getBarcode() != null ? dto.getBarcode() : catalogProduct.getBarcode());
         userProduct.setPrice(dto.getPrice());
         userProduct.setCostPrice(dto.getCostPrice());
         userProduct.setStock(dto.getStock() != null ? dto.getStock() : 0);
@@ -122,6 +125,9 @@ public class UserProductServiceImpl implements UserProductService {
 
         if (dto.getCustomName() != null) {
             existing.setCustomName(dto.getCustomName());
+        }
+        if (dto.getBarcode() != null) {
+            existing.setBarcode(dto.getBarcode());
         }
         existing.setPrice(dto.getPrice());
         existing.setCostPrice(dto.getCostPrice());

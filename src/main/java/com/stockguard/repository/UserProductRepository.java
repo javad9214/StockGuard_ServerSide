@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +37,11 @@ public interface UserProductRepository extends JpaRepository<UserProduct, Long> 
 
     // Count user's products
     long countByUserIdAndIsDeletedFalse(Long userId);
+
+    // Id-only projection: push-sync validation checks that invoice line items
+    // reference products the user owns without loading the rows (and their images)
+    @Query("select p.id from UserProduct p where p.userId = :userId and p.id in :ids")
+    List<Long> findIdsByUserIdAndIdIn(@Param("userId") Long userId, @Param("ids") Collection<Long> ids);
 
     // Find low stock products
     @Query("SELECT up FROM UserProduct up WHERE up.userId = :userId " +

@@ -1,6 +1,7 @@
 package com.stockguard.data.dto;
 
 
+import com.stockguard.data.enums.Unit;
 import lombok.Data;
 
 @Data
@@ -13,7 +14,7 @@ public class UserProductDTO {
     private String description;
     private Integer subcategoryId;
     private Integer supplierId;
-    private String unit;
+    private Unit unit; // enum name only (e.g. KILOGRAM); anything else is rejected with 400
     private Integer stock;
     private Integer minStockLevel;
     private Integer maxStockLevel;

@@ -5,6 +5,7 @@ import com.stockguard.data.dto.PagedResponse;
 import com.stockguard.data.dto.UserProductDTO;
 import com.stockguard.data.dto.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
+import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.service.UserProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +72,9 @@ public class UserProductController {
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Product created successfully", saved.getId()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Product creation failed", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Product creation failed", e.getMessage()));
@@ -107,8 +111,11 @@ public class UserProductController {
             userProductService.updateUserProduct(userId, id, product, image);
 
             return ResponseEntity.ok(ApiResponse.success("Product updated successfully"));
-        } catch (IllegalArgumentException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Update failed", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("Update failed", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -127,8 +134,11 @@ public class UserProductController {
             userProductService.deleteUserProduct(userId, id);
 
             return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
-        } catch (IllegalArgumentException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("Delete failed", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,5 +1,6 @@
 package com.stockguard.data.entity;
 
+import com.stockguard.data.enums.Unit;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -56,7 +57,8 @@ public class UserProduct {
     private Integer subcategoryId;
     private Integer supplierId;
 
-    private String unit;
+    @Enumerated(EnumType.STRING)
+    private Unit unit;
 
     @Column(nullable = false)
     private Integer stock = 0;

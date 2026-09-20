@@ -5,6 +5,7 @@ import com.stockguard.data.dto.UserProductResponseDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.entity.UserProduct;
+import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.repository.UserProductRepository;
@@ -143,7 +144,7 @@ public class UserProductServiceImpl implements UserProductService {
         log.info("Updating product {} for user {}", productId, userId);
 
         UserProduct existing = userProductRepository.findByIdAndUserId(productId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
         if (dto.getCustomName() != null) {
             existing.setCustomName(dto.getCustomName());
@@ -202,7 +203,7 @@ public class UserProductServiceImpl implements UserProductService {
         log.info("Deleting product {} for user {}", productId, userId);
 
         UserProduct product = userProductRepository.findByIdAndUserId(productId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
         product.setIsDeleted(true);
         userProductRepository.save(product);

@@ -1,5 +1,6 @@
 package com.stockguard.data.entity;
 
+import com.stockguard.data.enums.Unit;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -72,7 +73,8 @@ public class CatalogProduct {
     private Long suggestedPrice;
 
     // ================= UNIT =================
-    private String unit; // piece, kg, liter, gram ...
+    @Enumerated(EnumType.STRING)
+    private Unit unit;
 
     // ================= META =================
     @Column(columnDefinition = "TEXT")

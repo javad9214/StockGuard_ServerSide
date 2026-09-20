@@ -1,6 +1,7 @@
 package com.stockguard.data.dto;
 
 import com.stockguard.data.entity.CatalogProduct;
+import com.stockguard.data.enums.Unit;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -27,7 +28,7 @@ public class CatalogProductResponseDTO {
 
     // Price & Unit
     private Long suggestedPrice;
-    private String unit;
+    private Unit unit;
 
     // Meta
     private String tags;

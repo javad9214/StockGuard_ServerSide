@@ -3,6 +3,7 @@ package com.stockguard.data.dto;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.entity.UserProduct;
+import com.stockguard.data.enums.Unit;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -38,7 +39,8 @@ public class UserProductResponseDTO {
     private String categoryName;
     private Integer supplierId;
 
-    private String unit;
+    private Unit unit;
+    private String unitFa; // Persian label of the unit, e.g. کیلوگرم; null when none set
     private Integer stock;
     private Integer minStockLevel;
     private Integer maxStockLevel;
@@ -79,6 +81,7 @@ public class UserProductResponseDTO {
                 .categoryName(category != null ? category.getName() : null)
                 .supplierId(p.getSupplierId())
                 .unit(p.getUnit())
+                .unitFa(p.getUnit() != null ? p.getUnit().getFaName() : null)
                 .stock(p.getStock())
                 .minStockLevel(p.getMinStockLevel())
                 .maxStockLevel(p.getMaxStockLevel())

@@ -1,8 +1,9 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.common.ApiResponse;
 import com.stockguard.data.dto.common.PagedResponse;
+import com.stockguard.data.dto.common.ResponseDTO;
 import com.stockguard.data.entity.CatalogProduct;
+import com.stockguard.data.enums.ResponseCode;
 import com.stockguard.service.AdminCatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/admin/catalog")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminCatalogController {
+public class AdminCatalogController extends BaseController {
 
     private final AdminCatalogService adminCatalogService;
 
@@ -56,15 +57,13 @@ public class AdminCatalogController {
      * POST /api/admin/catalog/products
      */
     @PostMapping("/products")
-    public ResponseEntity<ApiResponse<Long>> createCatalogProduct(
+    public ResponseEntity<ResponseDTO<Long>> createCatalogProduct(
             @Valid @RequestBody CatalogProduct product) {
         try {
             CatalogProduct created = adminCatalogService.createCatalogProduct(product);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Catalog product created", created.getId()));
+            return generateOKResponse(created.getId());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Creation failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         }
     }
 
@@ -73,15 +72,14 @@ public class AdminCatalogController {
      * PUT /api/admin/catalog/products/{id}
      */
     @PutMapping("/products/{id}")
-    public ResponseEntity<ApiResponse<Void>> updateCatalogProduct(
+    public ResponseEntity<ResponseDTO<Void>> updateCatalogProduct(
             @PathVariable Long id,
             @Valid @RequestBody CatalogProduct product) {
         try {
             adminCatalogService.updateCatalogProduct(id, product);
-            return ResponseEntity.ok(ApiResponse.success("Product updated"));
+            return generateOKResponse(null);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Update failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, e.getMessage());
         }
     }
 
@@ -90,13 +88,12 @@ public class AdminCatalogController {
      * DELETE /api/admin/catalog/products/{id}
      */
     @DeleteMapping("/products/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteCatalogProduct(@PathVariable Long id) {
+    public ResponseEntity<ResponseDTO<Void>> deleteCatalogProduct(@PathVariable Long id) {
         try {
             adminCatalogService.deleteCatalogProduct(id);
-            return ResponseEntity.ok(ApiResponse.success("Product deleted"));
+            return generateOKResponse(null);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, e.getMessage());
         }
     }
 

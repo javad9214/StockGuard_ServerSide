@@ -1,10 +1,11 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.common.ApiResponse;
 import com.stockguard.data.dto.common.PagedResponse;
+import com.stockguard.data.dto.common.ResponseDTO;
 import com.stockguard.data.dto.userproduct.request.UserProductDTO;
 import com.stockguard.data.dto.userproduct.response.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
+import com.stockguard.data.enums.ResponseCode;
 import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.service.UserProductService;
 import jakarta.validation.Valid;
@@ -23,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
-public class UserProductController {
+public class UserProductController extends BaseController {
 
     private final UserProductService userProductService;
 
@@ -63,26 +64,23 @@ public class UserProductController {
      * POST /api/products
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Long>> createCustomProduct(
+    public ResponseEntity<ResponseDTO<Long>> createCustomProduct(
             @Valid @RequestPart("product") UserProductDTO product,
             @RequestPart(value = "image", required = false) MultipartFile image) {
         try {
             Long userId = getCurrentUserId();
             UserProduct saved = userProductService.createCustomProduct(userId, product, image);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Product created successfully", saved.getId()));
+            return generateOKResponse(saved.getId());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Product creation failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Product creation failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 
     @PostMapping(value = "/adopt/{catalogProductId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Long>> adoptCatalogProduct(
+    public ResponseEntity<ResponseDTO<Long>> adoptCatalogProduct(
             @PathVariable Long catalogProductId,
             @Valid @RequestPart("product") UserProductDTO productData,
             @RequestPart(value = "image", required = false) MultipartFile image) {
@@ -90,19 +88,16 @@ public class UserProductController {
             Long userId = getCurrentUserId();
             UserProduct adopted = userProductService.adoptCatalogProduct(userId, catalogProductId, productData, image);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Product adopted successfully", adopted.getId()));
+            return generateOKResponse(adopted.getId());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Adoption failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Adoption failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Void>> updateProduct(
+    public ResponseEntity<ResponseDTO<Void>> updateProduct(
             @PathVariable Long id,
             @Valid @RequestPart("product") UserProductDTO product,
             @RequestPart(value = "image", required = false) MultipartFile image) {
@@ -110,16 +105,13 @@ public class UserProductController {
             Long userId = getCurrentUserId();
             userProductService.updateUserProduct(userId, id, product, image);
 
-            return ResponseEntity.ok(ApiResponse.success("Product updated successfully"));
+            return generateOKResponse(null);
         } catch (ProductNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Update failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Update failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Update failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 
@@ -128,21 +120,18 @@ public class UserProductController {
      * DELETE /api/products/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<ResponseDTO<Void>> deleteProduct(@PathVariable Long id) {
         try {
             Long userId = getCurrentUserId();
             userProductService.deleteUserProduct(userId, id);
 
-            return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+            return generateOKResponse(null);
         } catch (ProductNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 

@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.common.ApiResponse;
 import com.stockguard.data.dto.category.response.CategoryWithSubcategoriesDTO;
+import com.stockguard.data.dto.common.ResponseDTO;
 import com.stockguard.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
-public class CategoryController {
+public class CategoryController extends BaseController {
 
     private final CategoryService categoryService;
 
@@ -24,9 +24,7 @@ public class CategoryController {
      * GET /api/categories
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CategoryWithSubcategoriesDTO>>> getCategories() {
-        return ResponseEntity.ok(
-                ApiResponse.success("Categories fetched", categoryService.getCategoriesWithSubcategories())
-        );
+    public ResponseEntity<ResponseDTO<List<CategoryWithSubcategoriesDTO>>> getCategories() {
+        return generateOKResponse(categoryService.getCategoriesWithSubcategories());
     }
 }

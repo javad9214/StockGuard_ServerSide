@@ -1,11 +1,12 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.common.ApiResponse;
-import com.stockguard.data.dto.userinvoice.response.InvoicePullDTO;
 import com.stockguard.data.dto.common.PagedResponse;
+import com.stockguard.data.dto.common.ResponseDTO;
+import com.stockguard.data.dto.userinvoice.response.InvoicePullDTO;
 import com.stockguard.data.dto.userinvoice.response.SyncedInvoiceDTO;
 import com.stockguard.data.dto.userinvoice.request.UserInvoiceDTO;
 import com.stockguard.data.dto.userinvoice.response.UserInvoiceResponseDTO;
+import com.stockguard.data.enums.ResponseCode;
 import com.stockguard.service.UserInvoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,7 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/invoices")
 @RequiredArgsConstructor
-public class UserInvoiceController {
+public class UserInvoiceController extends BaseController {
 
     private final UserInvoiceService userInvoiceService;
 
@@ -62,18 +63,16 @@ public class UserInvoiceController {
      * POST /api/invoices/sync
      */
     @PostMapping("/sync")
-    public ResponseEntity<ApiResponse<List<SyncedInvoiceDTO>>> pushInvoices(@RequestBody List<UserInvoiceDTO> batch) {
+    public ResponseEntity<ResponseDTO<List<SyncedInvoiceDTO>>> pushInvoices(@RequestBody List<UserInvoiceDTO> batch) {
         try {
             Long userId = getCurrentUserId();
             List<SyncedInvoiceDTO> result = userInvoiceService.pushInvoices(userId, batch);
 
-            return ResponseEntity.ok(ApiResponse.success("Invoices synced successfully", result));
+            return generateOKResponse(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Invoice sync failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.BAD_REQUEST, ResponseCode.VALIDATION_ERROR, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Invoice sync failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 
@@ -86,17 +85,16 @@ public class UserInvoiceController {
      * mirrors deletions; serverTime becomes the next cursor.
      */
     @GetMapping("/sync")
-    public ResponseEntity<ApiResponse<InvoicePullDTO>> pullInvoices(
+    public ResponseEntity<ResponseDTO<InvoicePullDTO>> pullInvoices(
             @RequestParam(defaultValue = "0") long since,
             @PageableDefault(size = 50) Pageable pageable) {
         try {
             Long userId = getCurrentUserId();
             InvoicePullDTO result = userInvoiceService.pullInvoices(userId, since, pageable);
 
-            return ResponseEntity.ok(ApiResponse.success("Invoices pulled successfully", result));
+            return generateOKResponse(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Invoice pull failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 
@@ -105,18 +103,16 @@ public class UserInvoiceController {
      * DELETE /api/invoices/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteInvoice(@PathVariable Long id) {
+    public ResponseEntity<ResponseDTO<Void>> deleteInvoice(@PathVariable Long id) {
         try {
             Long userId = getCurrentUserId();
             userInvoiceService.deleteUserInvoice(userId, id);
 
-            return ResponseEntity.ok(ApiResponse.success("Invoice deleted successfully"));
+            return generateOKResponse(null);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Delete failed", e.getMessage()));
+            return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, e.getMessage());
         }
     }
 

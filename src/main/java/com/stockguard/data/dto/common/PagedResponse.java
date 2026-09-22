@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.common;
 
 import java.util.List;
 

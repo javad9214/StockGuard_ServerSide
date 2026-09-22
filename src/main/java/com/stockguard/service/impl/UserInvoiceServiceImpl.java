@@ -1,10 +1,10 @@
 package com.stockguard.service.impl;
 
-import com.stockguard.data.dto.InvoicePullDTO;
-import com.stockguard.data.dto.SyncedInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceItemDTO;
-import com.stockguard.data.dto.UserInvoiceResponseDTO;
+import com.stockguard.data.dto.userinvoice.response.InvoicePullDTO;
+import com.stockguard.data.dto.userinvoice.response.SyncedInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.request.UserInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.UserInvoiceItemDTO;
+import com.stockguard.data.dto.userinvoice.response.UserInvoiceResponseDTO;
 import com.stockguard.data.entity.UserInvoice;
 import com.stockguard.data.entity.UserInvoiceProduct;
 import com.stockguard.repository.UserInvoiceRepository;

@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.userinvoice.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

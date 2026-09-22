@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.CatalogProductResponseDTO;
-import com.stockguard.data.dto.PagedResponse;
+import com.stockguard.data.dto.catalog.response.CatalogProductResponseDTO;
+import com.stockguard.data.dto.common.PagedResponse;
 import com.stockguard.service.CatalogProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

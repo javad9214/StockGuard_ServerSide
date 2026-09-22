@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.appversion.AppVersionRequestDTO;
-import com.stockguard.data.dto.appversion.AppVersionResponseDTO;
+import com.stockguard.data.dto.appversion.request.AppVersionRequestDTO;
+import com.stockguard.data.dto.appversion.response.AppVersionResponseDTO;
 import com.stockguard.service.AppVersionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

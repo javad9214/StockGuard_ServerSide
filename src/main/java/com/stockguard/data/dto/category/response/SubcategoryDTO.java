@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.category.response;
 
 import com.stockguard.data.entity.Subcategory;
 import lombok.Builder;

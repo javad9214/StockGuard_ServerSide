@@ -1,5 +1,6 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.userinvoice.request;
 
+import com.stockguard.data.dto.userinvoice.UserInvoiceItemDTO;
 import lombok.Data;
 
 import java.util.List;

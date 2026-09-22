@@ -1,7 +1,7 @@
 package com.stockguard.service;
 
-import com.stockguard.data.dto.appversion.AppVersionRequestDTO;
-import com.stockguard.data.dto.appversion.AppVersionResponseDTO;
+import com.stockguard.data.dto.appversion.request.AppVersionRequestDTO;
+import com.stockguard.data.dto.appversion.response.AppVersionResponseDTO;
 
 import java.util.List;
 

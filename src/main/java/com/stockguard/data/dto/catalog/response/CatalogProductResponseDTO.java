@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.catalog.response;
 
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.enums.Unit;

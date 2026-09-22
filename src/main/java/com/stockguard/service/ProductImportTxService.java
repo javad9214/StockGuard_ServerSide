@@ -1,6 +1,6 @@
 package com.stockguard.service;
 
-import com.stockguard.data.dto.ProductImportDTO;
+import com.stockguard.data.dto.productImporter.ProductImportDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;

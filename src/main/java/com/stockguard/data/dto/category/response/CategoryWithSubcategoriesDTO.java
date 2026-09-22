@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.category.response;
 
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;

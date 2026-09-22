@@ -1,11 +1,11 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.ApiResponse;
-import com.stockguard.data.dto.InvoicePullDTO;
-import com.stockguard.data.dto.PagedResponse;
-import com.stockguard.data.dto.SyncedInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceResponseDTO;
+import com.stockguard.data.dto.common.ApiResponse;
+import com.stockguard.data.dto.userinvoice.response.InvoicePullDTO;
+import com.stockguard.data.dto.common.PagedResponse;
+import com.stockguard.data.dto.userinvoice.response.SyncedInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.request.UserInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.response.UserInvoiceResponseDTO;
 import com.stockguard.service.UserInvoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

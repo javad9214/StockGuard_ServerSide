@@ -1,4 +1,4 @@
-package com.stockguard.data.dto.appversion;
+package com.stockguard.data.dto.appversion.response;
 
 
 import lombok.AllArgsConstructor;

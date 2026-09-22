@@ -1,4 +1,4 @@
-package com.stockguard.data.dto.appversion;
+package com.stockguard.data.dto.appversion.request;
 
 
 import jakarta.validation.constraints.Min;

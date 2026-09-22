@@ -1,4 +1,4 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.userproduct.request;
 
 
 import com.stockguard.data.enums.Unit;

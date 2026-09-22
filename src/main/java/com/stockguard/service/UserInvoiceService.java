@@ -1,9 +1,9 @@
 package com.stockguard.service;
 
-import com.stockguard.data.dto.InvoicePullDTO;
-import com.stockguard.data.dto.SyncedInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceDTO;
-import com.stockguard.data.dto.UserInvoiceResponseDTO;
+import com.stockguard.data.dto.userinvoice.response.InvoicePullDTO;
+import com.stockguard.data.dto.userinvoice.response.SyncedInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.request.UserInvoiceDTO;
+import com.stockguard.data.dto.userinvoice.response.UserInvoiceResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

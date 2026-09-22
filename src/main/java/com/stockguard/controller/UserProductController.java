@@ -1,9 +1,9 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.ApiResponse;
-import com.stockguard.data.dto.PagedResponse;
-import com.stockguard.data.dto.UserProductDTO;
-import com.stockguard.data.dto.UserProductResponseDTO;
+import com.stockguard.data.dto.common.ApiResponse;
+import com.stockguard.data.dto.common.PagedResponse;
+import com.stockguard.data.dto.userproduct.request.UserProductDTO;
+import com.stockguard.data.dto.userproduct.response.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
 import com.stockguard.exception.ProductNotFoundException;
 import com.stockguard.service.UserProductService;

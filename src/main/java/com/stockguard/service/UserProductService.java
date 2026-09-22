@@ -1,7 +1,7 @@
 package com.stockguard.service;
 
-import com.stockguard.data.dto.UserProductDTO;
-import com.stockguard.data.dto.UserProductResponseDTO;
+import com.stockguard.data.dto.userproduct.request.UserProductDTO;
+import com.stockguard.data.dto.userproduct.response.UserProductResponseDTO;
 import com.stockguard.data.entity.UserProduct;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

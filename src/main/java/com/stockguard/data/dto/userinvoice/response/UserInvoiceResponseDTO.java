@@ -1,6 +1,7 @@
-package com.stockguard.data.dto;
+package com.stockguard.data.dto.userinvoice.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.stockguard.data.dto.userinvoice.UserInvoiceItemDTO;
 import com.stockguard.data.entity.UserInvoice;
 import lombok.AllArgsConstructor;
 import lombok.Data;

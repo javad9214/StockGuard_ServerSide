@@ -1,6 +1,6 @@
 package com.stockguard.service.impl;
 
-import com.stockguard.data.dto.CategoryWithSubcategoriesDTO;
+import com.stockguard.data.dto.category.response.CategoryWithSubcategoriesDTO;
 import com.stockguard.data.entity.Subcategory;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;

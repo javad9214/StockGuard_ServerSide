@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.ApiResponse;
-import com.stockguard.data.dto.CategoryWithSubcategoriesDTO;
+import com.stockguard.data.dto.common.ApiResponse;
+import com.stockguard.data.dto.category.response.CategoryWithSubcategoriesDTO;
 import com.stockguard.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

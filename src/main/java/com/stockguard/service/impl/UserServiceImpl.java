@@ -1,6 +1,6 @@
 package com.stockguard.service.impl;
 
-import com.stockguard.data.dto.auth.UserDTO;
+import com.stockguard.data.dto.auth.response.UserDTO;
 import com.stockguard.data.dto.auth.request.ChangePasswordRequestDTO;
 import com.stockguard.data.dto.auth.request.LoginRequestDTO;
 import com.stockguard.data.dto.auth.request.RegisterRequestDTO;

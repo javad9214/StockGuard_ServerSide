@@ -1,7 +1,7 @@
 package com.stockguard.service.impl;
 
-import com.stockguard.data.dto.UserProductDTO;
-import com.stockguard.data.dto.UserProductResponseDTO;
+import com.stockguard.data.dto.userproduct.request.UserProductDTO;
+import com.stockguard.data.dto.userproduct.response.UserProductResponseDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Subcategory;
 import com.stockguard.data.entity.UserProduct;

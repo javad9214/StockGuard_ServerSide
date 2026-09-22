@@ -2,8 +2,8 @@ package com.stockguard.service.impl;
 
 
 
-import com.stockguard.data.dto.appversion.AppVersionRequestDTO;
-import com.stockguard.data.dto.appversion.AppVersionResponseDTO;
+import com.stockguard.data.dto.appversion.request.AppVersionRequestDTO;
+import com.stockguard.data.dto.appversion.response.AppVersionResponseDTO;
 import com.stockguard.data.entity.AppVersion;
 import com.stockguard.repository.AppVersionRepository;
 import com.stockguard.service.AppVersionService;

@@ -1,7 +1,7 @@
 package com.stockguard.controller;
 
-import com.stockguard.data.dto.auth.AdminUserDTO;
-import com.stockguard.data.dto.auth.UserStatisticsDTO;
+import com.stockguard.data.dto.auth.response.AdminUserDTO;
+import com.stockguard.data.dto.auth.response.UserStatisticsDTO;
 import com.stockguard.data.dto.auth.request.AdminCreateUserRequest;
 import com.stockguard.data.dto.auth.request.AdminResetPasswordRequest;
 import com.stockguard.data.dto.auth.request.AdminUpdateUserRequest;

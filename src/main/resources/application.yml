@@ -35,5 +35,17 @@ jwt:
   refresh:
     expiration: 2592000000
 
+daryamart:
+  api:
+    base-url: https://daryamart.ir
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+
 server:
   port: 8080

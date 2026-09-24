@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // User products (authenticated)
                         .requestMatchers("/api/products/**").authenticated()
 
+                        // Barcode lookup via Daryamart (authenticated)
+                        .requestMatchers("/api/barcode/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

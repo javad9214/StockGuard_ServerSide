@@ -67,10 +67,8 @@ public class CatalogProduct {
     private String imageSource; // SNAPP_MARKET, MANUAL, OTHER
 
     // ================= PRICE =================
-    /**
-     * Reference price only (catalog-level)
-     */
-    private Long suggestedPrice;
+    private Long suggestedSellPrice;
+    private Long suggestedCostPrice;
 
     // ================= UNIT =================
     @Enumerated(EnumType.STRING)

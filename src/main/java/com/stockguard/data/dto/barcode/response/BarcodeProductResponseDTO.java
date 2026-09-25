@@ -20,4 +20,7 @@ public class BarcodeProductResponseDTO {
 
     @Schema(title = "selling price")
     private Long sellPrice;
+
+    @Schema(title = "cost price")
+    private Long costPrice;
 }

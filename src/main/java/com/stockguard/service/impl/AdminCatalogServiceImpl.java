@@ -76,7 +76,8 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
       //  existing.setCategory(product.getCategory());
         existing.setSubcategory(product.getSubcategory());
         existing.setImageUrl(product.getImageUrl());
-        existing.setSuggestedPrice(product.getSuggestedPrice());
+        existing.setSuggestedSellPrice(product.getSuggestedSellPrice());
+        existing.setSuggestedCostPrice(product.getSuggestedCostPrice());
         existing.setUnit(product.getUnit());
         existing.setTags(product.getTags());
 

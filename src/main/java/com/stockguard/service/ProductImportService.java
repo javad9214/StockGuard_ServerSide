@@ -128,7 +128,7 @@ public class ProductImportService {
                 .name(dto.getTitle() != null ? dto.getTitle() : "بدون نام")
                 .externalSource("SNAPP_MARKET")
                 .externalSourceId(dto.getId())
-                .suggestedPrice(dto.getFinalPrice() != null ? dto.getFinalPrice() : dto.getPrice())
+                .suggestedSellPrice(dto.getFinalPrice() != null ? dto.getFinalPrice() : dto.getPrice())
                 .brand(dto.getBrand())
                 .imageUrl(dto.getImageUrl())
                 .imageSource("SNAPP_MARKET")

@@ -27,7 +27,8 @@ public class CatalogProductResponseDTO {
     private String imageSource;
 
     // Price & Unit
-    private Long suggestedPrice;
+    private Long suggestedSellPrice;
+    private Long suggestedCostPrice;
     private Unit unit;
 
     // Meta
@@ -61,7 +62,8 @@ public class CatalogProductResponseDTO {
                         ? p.getSubcategory().getCategory().getName() : null)
                 .imageUrl(p.getImageUrl())
                 .imageSource(p.getImageSource())
-                .suggestedPrice(p.getSuggestedPrice())
+                .suggestedSellPrice(p.getSuggestedSellPrice())
+                .suggestedCostPrice(p.getSuggestedCostPrice())
                 .unit(p.getUnit())
                 .tags(p.getTags())
                 .status(p.getStatus())

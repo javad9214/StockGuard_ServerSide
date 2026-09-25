@@ -3,6 +3,7 @@ package com.stockguard.service;
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
 import com.stockguard.data.dto.daryamart.DaryamartSearchResponseDto;
+import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.service.impl.BarcodeLookupServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,9 +71,16 @@ class BarcodeLookupServiceImplTest {
                 return response;
             }
         };
-        BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(fakeClient);
+        BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(fakeClient, emptyCatalogRepository());
         ReflectionTestUtils.setField(impl, "baseUrl", BASE_URL);
         return impl;
+    }
+
+    private CatalogProductRepository emptyCatalogRepository() {
+        CatalogProductRepository repo = org.mockito.Mockito.mock(CatalogProductRepository.class);
+        org.mockito.Mockito.when(repo.findByBarcodeAndIsActiveTrue(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.empty());
+        return repo;
     }
 
     @Test
@@ -83,7 +91,7 @@ class BarcodeLookupServiceImplTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().getName()).isEqualTo("بیسکویت شکو چیپس شکلاتی سلامت");
-        assertThat(result.get().getSellPrice()).isEqualTo(132900L);
+        assertThat(result.get().getSellPrice()).isEqualTo(1329000L); // toman 132900 converted to rial
         assertThat(result.get().getImageUrl())
                 .isEqualTo(BASE_URL + "/host/shabazi/2024/12/97863679310338.png");
     }

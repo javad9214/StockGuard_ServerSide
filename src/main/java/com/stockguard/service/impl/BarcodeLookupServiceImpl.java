@@ -4,6 +4,8 @@ import com.stockguard.client.DaryamartClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
 import com.stockguard.data.dto.daryamart.DaryamartProductDto;
 import com.stockguard.data.dto.daryamart.DaryamartSearchResponseDto;
+import com.stockguard.data.entity.CatalogProduct;
+import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.service.BarcodeLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,13 +28,24 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private static final BigDecimal TOMAN_TO_RIAL = BigDecimal.TEN;
 
     private final DaryamartClient daryamartClient;
+    private final CatalogProductRepository catalogProductRepository;
 
     @Value("${daryamart.api.base-url}")
     private String baseUrl;
 
     @Override
     public Optional<BarcodeProductResponseDTO> lookupByBarcode(String barcode) {
-        log.info("🏷️ Looking up barcode in Daryamart: {}", barcode);
+        Optional<CatalogProduct> local = catalogProductRepository.findByBarcodeAndIsActiveTrue(barcode);
+        if (local.isPresent()) {
+            log.info("🏷️ Barcode found in catalog: {}", barcode);
+            return local.map(this::toResponse);
+        }
+
+        log.info("🏷️ Barcode not in catalog, falling back to Daryamart: {}", barcode);
+        return lookupInDaryamart(barcode);
+    }
+
+    private Optional<BarcodeProductResponseDTO> lookupInDaryamart(String barcode) {
 
         DaryamartSearchResponseDto response =
                 daryamartClient.searchProducts(barcode, PAGE_NUMBER, PAGE_SIZE);
@@ -58,6 +71,15 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                 .name(product.getName())
                 .imageUrl(toAbsoluteImageUrl(product.getImageAddress()))
                 .sellPrice(toRial(product.getPrice()))
+                .build();
+    }
+
+    private BarcodeProductResponseDTO toResponse(CatalogProduct product) {
+        return BarcodeProductResponseDTO.builder()
+                .name(product.getName())
+                .imageUrl(product.getImageUrl())
+                .sellPrice(product.getSuggestedSellPrice())
+                .costPrice(product.getSuggestedCostPrice())
                 .build();
     }
 

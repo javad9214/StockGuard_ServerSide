@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,8 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
 
     private static final int PAGE_NUMBER = 1;
     private static final int PAGE_SIZE = 50;
+
+    private static final BigDecimal TOMAN_TO_RIAL = BigDecimal.TEN;
 
     private final DaryamartClient daryamartClient;
 
@@ -54,7 +57,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
         return BarcodeProductResponseDTO.builder()
                 .name(product.getName())
                 .imageUrl(toAbsoluteImageUrl(product.getImageAddress()))
-                .sellPrice(product.getPrice())
+                .sellPrice(toRial(product.getPrice()))
                 .build();
     }
 
@@ -66,5 +69,9 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             return imageAddress;
         }
         return baseUrl + imageAddress;
+    }
+
+    private Long toRial(Long tomanPrice) {
+        return tomanPrice == null ? null : tomanPrice * 10;
     }
 }

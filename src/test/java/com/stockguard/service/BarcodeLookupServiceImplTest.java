@@ -243,4 +243,51 @@ class BarcodeLookupServiceImplTest {
                 .storeFromUrl(BASE_URL + "/host/shabazi/2024/12/97863679310338.png");
         org.mockito.Mockito.verify(repo).save(incomplete);
     }
+
+    /**
+     * Rows saved before MinIO ingestion hold the absolute Daryamart URL in
+     * image_key. Such a URL is not an owned image: the lookup must re-fetch
+     * from Daryamart, store the image in MinIO and replace the legacy URL.
+     */
+    @Test
+    void replacesLegacyExternalImageUrlWithStoredMinioKey() {
+        CatalogProduct legacy = CatalogProduct.builder()
+                .id(11L)
+                .name("شیرین عسل بیسکویت کرمدار کاکائو 120گ")
+                .imageKey("https://daryamart.ir/host/shabazi/2026/2/96681783646756.jpg")
+                .suggestedSellPrice(550000L)
+                .build();
+        CatalogProductRepository repo = org.mockito.Mockito.mock(CatalogProductRepository.class);
+        org.mockito.Mockito.when(repo.findByBarcodeAndIsActiveTrue("6261149010686"))
+                .thenReturn(Optional.of(legacy));
+        org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any(CatalogProduct.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        com.stockguard.service.ImageStorageService storage =
+                org.mockito.Mockito.mock(com.stockguard.service.ImageStorageService.class);
+        org.mockito.Mockito.when(storage.storeFromUrl(BASE_URL + "/host/shabazi/2024/12/97863679310338.png"))
+                .thenReturn("uuid-97863679310338.png");
+
+        service = new BarcodeLookupServiceImpl(
+                new DaryamartClient() {
+                    @Override
+                    public DaryamartSearchResponseDto searchProducts(String key, int pageNumber, int pageSize) {
+                        return successfulResponse;
+                    }
+                },
+                repo,
+                org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
+                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
+                storage);
+        ReflectionTestUtils.setField(service, "baseUrl", BASE_URL);
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6261149010686");
+
+        assertThat(result).isPresent();
+        // price was already there and must stay untouched
+        assertThat(result.get().getSellPrice()).isEqualTo(550000L);
+        assertThat(result.get().getImageUrl()).isEqualTo("/api/images/uuid-97863679310338.png");
+        assertThat(legacy.getImageKey()).isEqualTo("uuid-97863679310338.png");
+        org.mockito.Mockito.verify(repo).save(legacy);
+    }
 }

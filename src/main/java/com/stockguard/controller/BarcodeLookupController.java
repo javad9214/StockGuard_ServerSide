@@ -26,7 +26,7 @@ public class BarcodeLookupController extends BaseController {
     private final BarcodeLookupService barcodeLookupService;
 
     /**
-     * Look up a product by barcode in the Daryamart catalog
+     * Look up a product by barcode
      * POST /api/barcode/lookup
      */
     @PostMapping("/lookup")

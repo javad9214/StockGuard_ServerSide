@@ -12,6 +12,7 @@ import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.service.BarcodeLookupService;
 import com.stockguard.service.ImageStorageService;
+import com.stockguard.util.ImageUrlResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,7 +52,8 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             CatalogProduct product = local.get();
             log.info("🏷️ Barcode found in catalog: {}", barcode);
 
-            if (product.getSuggestedSellPrice() == null || !StringUtils.hasText(product.getImageKey())) {
+            if (product.getSuggestedSellPrice() == null
+                    || !ImageUrlResolver.isStoredKey(product.getImageKey())) {
                 enrichFromDaryamart(barcode, product);
             }
             return Optional.of(toResponse(product));
@@ -62,9 +64,11 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     }
 
     /**
-     * Catalog hit with a missing price or image: ask Daryamart for the missing
-     * fields and persist them so the row is complete from here on. Best-effort —
-     * the (possibly still incomplete) catalog response is returned either way.
+     * Catalog hit with a missing price or an image we don't own (null, blank or
+     * a legacy external URL saved before MinIO ingestion): ask Daryamart for the
+     * missing fields and persist them so the row is complete from here on.
+     * Best-effort — the (possibly still incomplete) catalog response is
+     * returned either way.
      */
     private void enrichFromDaryamart(String barcode, CatalogProduct product) {
         try {
@@ -81,7 +85,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                         changed = true;
                     }
                 }
-                if (!StringUtils.hasText(product.getImageKey())
+                if (!ImageUrlResolver.isStoredKey(product.getImageKey())
                         && StringUtils.hasText(dto.getImageAddress())) {
                     String stored = storeImage(dto.getImageAddress());
                     if (stored != null) {

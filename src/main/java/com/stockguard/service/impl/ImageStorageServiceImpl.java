@@ -19,8 +19,13 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.UUID;
 
 @Service
@@ -29,8 +34,18 @@ import java.util.UUID;
 public class ImageStorageServiceImpl implements ImageStorageService {
 
     private static final int MAX_NAME_LENGTH = 80;
+    private static final int DOWNLOAD_CONNECT_TIMEOUT_MS = 5_000;
+    private static final int DOWNLOAD_READ_TIMEOUT_MS = 10_000;
 
     private final S3Client s3Client;
+
+    /**
+     * Dedicated client for fetching external images (bounded timeouts so a
+     * stalled third-party server can't hang request threads).
+     */
+    private final RestClient downloadClient = RestClient.builder()
+            .requestFactory(downloadRequestFactory())
+            .build();
 
     @Value("${minio.bucket}")
     private String bucket;
@@ -43,24 +58,48 @@ public class ImageStorageServiceImpl implements ImageStorageService {
 
     @Override
     public String upload(MultipartFile file) throws IOException {
-        validate(file);
+        return upload(file.getBytes(), file.getContentType(), file.getOriginalFilename());
+    }
+
+    @Override
+    public String upload(byte[] bytes, String contentType, String filename) {
+        validate(bytes, contentType);
         ensureBucketExists();
 
-        String key = buildKey(file);
+        String key = buildKey(filename, contentType);
 
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
-                        .contentType(file.getContentType())
-                        .contentLength(file.getSize())
+                        .contentType(contentType)
+                        .contentLength((long) bytes.length)
                         .build(),
-                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                RequestBody.fromBytes(bytes)
         );
 
         log.info("Stored image '{}' ({} bytes, {}) in bucket '{}'",
-                key, file.getSize(), file.getContentType(), bucket);
+                key, bytes.length, contentType, bucket);
         return key;
+    }
+
+    @Override
+    public String storeFromUrl(String imageUrl) {
+        if (!StringUtils.hasText(imageUrl)) {
+            throw new IllegalArgumentException("Image URL is blank");
+        }
+
+        ResponseEntity<byte[]> response = downloadClient.get()
+                .uri(URI.create(imageUrl))
+                .retrieve()
+                .toEntity(byte[].class);
+
+        byte[] bytes = response.getBody();
+        String contentType = response.getHeaders().getContentType() != null
+                ? response.getHeaders().getContentType().toString()
+                : null;
+
+        return upload(bytes, contentType, filenameOf(imageUrl, contentType));
     }
 
     @Override
@@ -86,15 +125,15 @@ public class ImageStorageServiceImpl implements ImageStorageService {
         log.info("Deleted image '{}' from bucket '{}'", key, bucket);
     }
 
-    private void validate(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+    private void validate(byte[] bytes, String contentType) {
+        if (bytes == null || bytes.length == 0) {
             throw new IllegalArgumentException("Image file is empty");
         }
-        if (file.getContentType() == null || !file.getContentType().startsWith("image/")) {
+        if (contentType == null || !contentType.startsWith("image/")) {
             throw new IllegalArgumentException(
-                    "Only image files are accepted, received content type: " + file.getContentType());
+                    "Only image files are accepted, received content type: " + contentType);
         }
-        if (file.getSize() > maxImageSize.toBytes()) {
+        if (bytes.length > maxImageSize.toBytes()) {
             throw new IllegalArgumentException(
                     "Image exceeds the maximum allowed size of " + maxImageSize.toBytes() + " bytes");
         }
@@ -104,16 +143,47 @@ public class ImageStorageServiceImpl implements ImageStorageService {
      * Key = random UUID + sanitized original name (path stripped, ASCII-safe,
      * extension kept) so objects are unguessable yet identifiable in the bucket.
      */
-    private String buildKey(MultipartFile file) {
-        String original = StringUtils.getFilename(file.getOriginalFilename());
-        String safe = original == null ? "image" : original.replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (safe.length() > MAX_NAME_LENGTH) {
+    private String buildKey(String filename, String contentType) {
+        String original = filename != null ? StringUtils.getFilename(filename) : null;
+        String safe = original == null ? null : original.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (safe != null && safe.length() > MAX_NAME_LENGTH) {
             safe = safe.substring(safe.length() - MAX_NAME_LENGTH); // keeps the extension
         }
-        if (safe.isBlank() || ".".equals(safe)) {
-            safe = "image";
+        if (safe == null || safe.isBlank() || ".".equals(safe)) {
+            safe = fallbackName(contentType);
         }
         return UUID.randomUUID() + "-" + safe;
+    }
+
+    /**
+     * When the caller gives no usable filename (URL without a path, raw bytes),
+     * name the object after the content type: "image.webp", "image.png", ...
+     */
+    private String fallbackName(String contentType) {
+        String subtype = contentType != null && contentType.contains("/")
+                ? contentType.substring(contentType.indexOf('/') + 1)
+                : null;
+        return "image" + (subtype != null && !subtype.isBlank() ? "." + subtype.replaceAll("[^a-zA-Z0-9]", "") : "");
+    }
+
+    /**
+     * Filename taken from the URL path; query strings are excluded.
+     */
+    private String filenameOf(String imageUrl, String contentType) {
+        try {
+            String path = URI.create(imageUrl).getPath();
+            String filename = path != null ? StringUtils.getFilename(path) : null;
+            return StringUtils.hasText(filename) ? filename : fallbackName(contentType);
+        } catch (IllegalArgumentException e) {
+            return fallbackName(contentType);
+        }
+    }
+
+    private static ClientHttpRequestFactory downloadRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(DOWNLOAD_CONNECT_TIMEOUT_MS);
+        factory.setReadTimeout(DOWNLOAD_READ_TIMEOUT_MS);
+        return factory;
     }
 
     private synchronized void ensureBucketExists() {

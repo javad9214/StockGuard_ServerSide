@@ -66,6 +66,12 @@ class BarcodeLookupServiceImplTest {
     }
 
     private BarcodeLookupServiceImpl serviceReturning(DaryamartSearchResponseDto response) {
+        return serviceReturning(response, imageStorageFailingWith("MinIO unavailable in unit test"));
+    }
+
+    private BarcodeLookupServiceImpl serviceReturning(
+            DaryamartSearchResponseDto response,
+            com.stockguard.service.ImageStorageService imageStorage) {
         DaryamartClient fakeClient = new DaryamartClient() {
             @Override
             public DaryamartSearchResponseDto searchProducts(String key, int pageNumber, int pageSize) {
@@ -76,9 +82,22 @@ class BarcodeLookupServiceImplTest {
                 fakeClient,
                 emptyCatalogRepository(),
                 org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
-                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class));
+                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
+                imageStorage);
         ReflectionTestUtils.setField(impl, "baseUrl", BASE_URL);
         return impl;
+    }
+
+    /**
+     * Storage that never succeeds: storeImage then falls back to the direct
+     * Daryamart URL, which is what the pre-MinIO assertions pin.
+     */
+    private com.stockguard.service.ImageStorageService imageStorageFailingWith(String reason) {
+        com.stockguard.service.ImageStorageService storage =
+                org.mockito.Mockito.mock(com.stockguard.service.ImageStorageService.class);
+        org.mockito.Mockito.when(storage.storeFromUrl(org.mockito.ArgumentMatchers.anyString()))
+                .thenThrow(new RuntimeException(reason));
+        return storage;
     }
 
     private CatalogProductRepository emptyCatalogRepository() {
@@ -146,5 +165,82 @@ class BarcodeLookupServiceImplTest {
         assertThat(service.lookupByBarcode("6261145000407"))
                 .map(BarcodeProductResponseDTO::getImageUrl)
                 .contains("https://cdn.example.com/img.png");
+    }
+
+    @Test
+    void returnsCompleteCatalogHitWithoutCallingDaryamart() {
+        CatalogProduct complete = CatalogProduct.builder()
+                .id(7L)
+                .name("کاتالوگ کامل")
+                .imageKey("existing-key.png")
+                .suggestedSellPrice(500000L)
+                .build();
+        DaryamartClient neverCalled = new DaryamartClient() {
+            @Override
+            public DaryamartSearchResponseDto searchProducts(String key, int pageNumber, int pageSize) {
+                throw new AssertionError("Daryamart must not be called for a complete catalog row");
+            }
+        };
+        CatalogProductRepository repo = org.mockito.Mockito.mock(CatalogProductRepository.class);
+        org.mockito.Mockito.when(repo.findByBarcodeAndIsActiveTrue("6261145000407"))
+                .thenReturn(Optional.of(complete));
+
+        service = new BarcodeLookupServiceImpl(
+                neverCalled,
+                repo,
+                org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
+                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
+                imageStorageFailingWith("must not store anything"));
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6261145000407");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getCatalogId()).isEqualTo(7L);
+        assertThat(result.get().getSellPrice()).isEqualTo(500000L);
+        // ImageUrlResolver with no configured base URL (unit test) -> relative /api/images URL
+        assertThat(result.get().getImageUrl()).isEqualTo("/api/images/existing-key.png");
+    }
+
+    @Test
+    void enrichesCatalogHitMissingPriceAndImageFromDaryamartAndStoresImageInMinio() {
+        CatalogProduct incomplete = CatalogProduct.builder()
+                .id(9L)
+                .name("بیسکویت شکو چیپس شکلاتی سلامت")
+                .build(); // no suggestedSellPrice, no imageKey
+        CatalogProductRepository repo = org.mockito.Mockito.mock(CatalogProductRepository.class);
+        org.mockito.Mockito.when(repo.findByBarcodeAndIsActiveTrue("6261145000407"))
+                .thenReturn(Optional.of(incomplete));
+        org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any(CatalogProduct.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        com.stockguard.service.ImageStorageService storage =
+                org.mockito.Mockito.mock(com.stockguard.service.ImageStorageService.class);
+        org.mockito.Mockito.when(storage.storeFromUrl(BASE_URL + "/host/shabazi/2024/12/97863679310338.png"))
+                .thenReturn("uuid-97863679310338.png");
+
+        service = new BarcodeLookupServiceImpl(
+                new DaryamartClient() {
+                    @Override
+                    public DaryamartSearchResponseDto searchProducts(String key, int pageNumber, int pageSize) {
+                        return successfulResponse;
+                    }
+                },
+                repo,
+                org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
+                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
+                storage);
+        ReflectionTestUtils.setField(service, "baseUrl", BASE_URL);
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6261145000407");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getCatalogId()).isEqualTo(9L);
+        assertThat(result.get().getSellPrice()).isEqualTo(1329000L); // toman -> rial, now persisted
+        assertThat(result.get().getImageUrl()).isEqualTo("/api/images/uuid-97863679310338.png");
+        assertThat(incomplete.getSuggestedSellPrice()).isEqualTo(1329000L);
+        assertThat(incomplete.getImageKey()).isEqualTo("uuid-97863679310338.png");
+        org.mockito.Mockito.verify(storage)
+                .storeFromUrl(BASE_URL + "/host/shabazi/2024/12/97863679310338.png");
+        org.mockito.Mockito.verify(repo).save(incomplete);
     }
 }

@@ -91,4 +91,9 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
             String externalSource,
             Long externalSourceId
     );
+
+    Optional<CatalogProduct> findByExternalSourceAndExternalSourceId(
+            String externalSource,
+            Long externalSourceId
+    );
 }

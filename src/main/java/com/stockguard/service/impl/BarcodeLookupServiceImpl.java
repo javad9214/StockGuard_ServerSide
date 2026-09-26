@@ -11,6 +11,7 @@ import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.service.BarcodeLookupService;
+import com.stockguard.service.ImageStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private final CatalogProductRepository catalogProductRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
+    private final ImageStorageService imageStorageService;
 
     @Value("${daryamart.api.base-url}")
     private String baseUrl;
@@ -46,15 +48,69 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     public Optional<BarcodeProductResponseDTO> lookupByBarcode(String barcode) {
         Optional<CatalogProduct> local = catalogProductRepository.findByBarcodeAndIsActiveTrue(barcode);
         if (local.isPresent()) {
+            CatalogProduct product = local.get();
             log.info("🏷️ Barcode found in catalog: {}", barcode);
-            return local.map(this::toResponse);
+
+            if (product.getSuggestedSellPrice() == null || !StringUtils.hasText(product.getImageKey())) {
+                enrichFromDaryamart(barcode, product);
+            }
+            return Optional.of(toResponse(product));
         }
 
         log.info("🏷️ Barcode not in catalog, falling back to Daryamart: {}", barcode);
         return lookupInDaryamart(barcode);
     }
 
+    /**
+     * Catalog hit with a missing price or image: ask Daryamart for the missing
+     * fields and persist them so the row is complete from here on. Best-effort —
+     * the (possibly still incomplete) catalog response is returned either way.
+     */
+    private void enrichFromDaryamart(String barcode, CatalogProduct product) {
+        try {
+            log.info("🔄 Catalog product {} lacks price/image, refreshing from Daryamart: {}",
+                    product.getId(), barcode);
+
+            findInDaryamart(barcode).ifPresent(dto -> {
+                boolean changed = false;
+
+                if (product.getSuggestedSellPrice() == null) {
+                    Long rial = toRial(dto.getPrice());
+                    if (rial != null) {
+                        product.setSuggestedSellPrice(rial);
+                        changed = true;
+                    }
+                }
+                if (!StringUtils.hasText(product.getImageKey())
+                        && StringUtils.hasText(dto.getImageAddress())) {
+                    String stored = storeImage(dto.getImageAddress());
+                    if (stored != null) {
+                        product.setImageKey(stored);
+                        changed = true;
+                    }
+                }
+
+                if (changed) {
+                    catalogProductRepository.save(product);
+                    log.info("✅ Enriched catalog product {} from Daryamart", product.getId());
+                } else {
+                    log.info("🔍 Daryamart had nothing new for catalog product {}", product.getId());
+                }
+            });
+        } catch (Exception e) {
+            log.warn("⚠️ Could not enrich catalog product {} from Daryamart: {}",
+                    product.getId(), e.getMessage());
+        }
+    }
+
     private Optional<BarcodeProductResponseDTO> lookupInDaryamart(String barcode) {
+        return findInDaryamart(barcode).map(product -> {
+            CatalogProduct saved = saveToCatalog(barcode, product);
+            return saved != null ? toResponse(saved) : toResponse(product);
+        });
+    }
+
+    private Optional<DaryamartProductDto> findInDaryamart(String barcode) {
 
         DaryamartSearchResponseDto response =
                 daryamartClient.searchProducts(barcode, PAGE_NUMBER, PAGE_SIZE);
@@ -72,30 +128,53 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             return Optional.empty();
         }
 
-        DaryamartProductDto product = products.get(0);
-        saveToCatalog(barcode, product);
-        return Optional.of(toResponse(product));
+        return Optional.of(products.get(0));
     }
 
-    private void saveToCatalog(String barcode, DaryamartProductDto product) {
+    /**
+     * Stores the Daryamart image in MinIO and returns the object key, so the DB
+     * owns the image instead of hotlinking Daryamart. Falls back to the absolute
+     * external URL when the download/upload fails — the resolver passes legacy
+     * absolute URLs through, so the image still renders.
+     */
+    private String storeImage(String imageAddress) {
+        String absolute = toAbsoluteImageUrl(imageAddress);
+        if (absolute == null) {
+            return null;
+        }
+        try {
+            String key = imageStorageService.storeFromUrl(absolute);
+            log.info("🖼️ Stored Daryamart image in MinIO: {} -> key {}", absolute, key);
+            return key;
+        } catch (Exception e) {
+            log.warn("⚠️ Could not store Daryamart image in MinIO ({}), falling back to direct URL: {}",
+                    e.getMessage(), absolute);
+            return absolute;
+        }
+    }
+
+    /**
+     * @return the persisted row, or null when the save was skipped/failed —
+     * callers then answer from the raw Daryamart payload.
+     */
+    private CatalogProduct saveToCatalog(String barcode, DaryamartProductDto product) {
         if (product.getId() == null) {
             log.warn("⚠️ Daryamart product has no id, not saving to catalog: {}", barcode);
-            return;
+            return null;
         }
 
         try {
-            if (catalogProductRepository.existsByExternalSourceAndExternalSourceId(
-                    EXTERNAL_SOURCE, product.getId())) {
+            Optional<CatalogProduct> existing = catalogProductRepository
+                    .findByExternalSourceAndExternalSourceId(EXTERNAL_SOURCE, product.getId());
+            if (existing.isPresent()) {
                 log.debug("⏭ Daryamart product already in catalog: id={}", product.getId());
-                return;
+                return existing.get();
             }
 
             CatalogProduct saved = catalogProductRepository.save(CatalogProduct.builder()
                     .name(StringUtils.hasText(product.getName()) ? product.getName() : "بدون نام")
                     .barcode(barcode)
-                    // external CDN image — stored as the full URL (only our own
-                    // uploads are MinIO keys); resolved at read time
-                    .imageKey(toAbsoluteImageUrl(product.getImageAddress()))
+                    .imageKey(storeImage(product.getImageAddress()))
                     .suggestedSellPrice(toRial(product.getPrice()))
                     .externalSource(EXTERNAL_SOURCE)
                     .externalSourceId(product.getId())
@@ -109,11 +188,13 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
 
             log.info("✅ Saved Daryamart product to catalog: barcode={}, name={}, catalogId={}",
                     barcode, saved.getName(), saved.getId());
+            return saved;
         } catch (Exception e) {
             // the lookup response must still be returned even if caching fails
             // (e.g. concurrent save of the same barcode)
             log.warn("⚠️ Could not save Daryamart product to catalog: barcode={}, reason={}",
                     barcode, e.getMessage());
+            return null;
         }
     }
 
@@ -140,6 +221,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
 
     private BarcodeProductResponseDTO toResponse(CatalogProduct product) {
         return BarcodeProductResponseDTO.builder()
+                .catalogId(product.getId())
                 .name(product.getName())
                 .imageUrl(product.getImageUrl())
                 .sellPrice(product.getSuggestedSellPrice())

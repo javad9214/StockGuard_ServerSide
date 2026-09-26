@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class BarcodeProductResponseDTO {
 
+    @Schema(title = "id of the matching catalog_products row, when the product is cached in the catalog")
+    private Long catalogId;
+
     @Schema(title = "product name")
     private String name;
 

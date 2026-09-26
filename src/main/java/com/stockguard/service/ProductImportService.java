@@ -130,7 +130,9 @@ public class ProductImportService {
                 .externalSourceId(dto.getId())
                 .suggestedSellPrice(dto.getFinalPrice() != null ? dto.getFinalPrice() : dto.getPrice())
                 .brand(dto.getBrand())
-                .imageUrl(dto.getImageUrl())
+                // external CDN image — stored as the full URL (only our own
+                // uploads are MinIO keys); resolved at read time
+                .imageKey(dto.getImageUrl())
                 .imageSource("SNAPP_MARKET")
                 .subcategory(subcategory)
                 .status(CatalogProduct.CatalogStatus.VERIFIED)

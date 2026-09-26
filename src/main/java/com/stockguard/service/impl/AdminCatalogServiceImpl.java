@@ -75,7 +75,7 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         existing.setManufacturer(product.getManufacturer());
       //  existing.setCategory(product.getCategory());
         existing.setSubcategory(product.getSubcategory());
-        existing.setImageUrl(product.getImageUrl());
+        existing.setImageKey(product.getImageKey());
         existing.setSuggestedSellPrice(product.getSuggestedSellPrice());
         existing.setSuggestedCostPrice(product.getSuggestedCostPrice());
         existing.setUnit(product.getUnit());
@@ -85,6 +85,24 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
         log.info("Catalog product updated: {}", id);
 
         return updated;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CatalogProduct getProductById(Long id) {
+        return catalogProductRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+    }
+
+    @Override
+    @Transactional
+    public void updateProductImageKey(Long id, String imageKey) {
+        CatalogProduct existing = catalogProductRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        existing.setImageKey(imageKey);
+        catalogProductRepository.save(existing);
+        log.info("Updated image key for catalog product {}: {}", id, imageKey);
     }
 
     @Override

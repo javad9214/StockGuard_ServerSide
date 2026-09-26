@@ -3,6 +3,7 @@ package com.stockguard.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -44,6 +45,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/version/check").permitAll()
                         .requestMatchers("/api/version/android").permitAll()
                         .requestMatchers("/api/version/ios").permitAll()
+
+                        // Stored product images (public GET — keys are unguessable UUIDs,
+                        // clients load them with plain Coil/Glide without auth headers)
+                        .requestMatchers(HttpMethod.GET, "/api/images/**").permitAll()
 
                         // Catalog browsing (authenticated users)
                         .requestMatchers("/api/catalog/**").authenticated()

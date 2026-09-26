@@ -47,5 +47,17 @@ feign:
         readTimeout: 10000
         loggerLevel: basic
 
+
+minio:
+  endpoint: http://188.75.89.14:9000
+  access-key: admin
+  secret-key: MINIOPassStockGuard
+  bucket: stockguard-products-images
+
+# public address clients use to reach this server; image URLs are built
+# from it at response time (object keys are stored in the DB, never URLs)
+app:
+  base-url: http://188.75.89.14:8080
+
 server:
   port: 8080

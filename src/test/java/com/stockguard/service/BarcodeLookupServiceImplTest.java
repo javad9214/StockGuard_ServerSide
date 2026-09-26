@@ -3,6 +3,7 @@ package com.stockguard.service;
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
 import com.stockguard.data.dto.daryamart.DaryamartSearchResponseDto;
+import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.service.impl.BarcodeLookupServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +72,11 @@ class BarcodeLookupServiceImplTest {
                 return response;
             }
         };
-        BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(fakeClient, emptyCatalogRepository());
+        BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(
+                fakeClient,
+                emptyCatalogRepository(),
+                org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
+                org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class));
         ReflectionTestUtils.setField(impl, "baseUrl", BASE_URL);
         return impl;
     }
@@ -80,6 +85,9 @@ class BarcodeLookupServiceImplTest {
         CatalogProductRepository repo = org.mockito.Mockito.mock(CatalogProductRepository.class);
         org.mockito.Mockito.when(repo.findByBarcodeAndIsActiveTrue(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(Optional.empty());
+        // catalog-caching path: echo the saved entity so the post-save log doesn't NPE
+        org.mockito.Mockito.when(repo.save(org.mockito.ArgumentMatchers.any(CatalogProduct.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
         return repo;
     }
 

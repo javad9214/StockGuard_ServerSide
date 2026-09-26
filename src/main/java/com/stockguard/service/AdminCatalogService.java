@@ -18,6 +18,10 @@ public interface AdminCatalogService {
 
     CatalogProduct updateCatalogProduct(Long id, CatalogProduct product);
 
+    CatalogProduct getProductById(Long id);
+
+    void updateProductImageKey(Long id, String imageKey);
+
     void deleteCatalogProduct(Long id);
 
     Map<String, Object> getStatistics();

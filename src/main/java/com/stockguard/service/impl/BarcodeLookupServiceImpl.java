@@ -93,7 +93,9 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             CatalogProduct saved = catalogProductRepository.save(CatalogProduct.builder()
                     .name(StringUtils.hasText(product.getName()) ? product.getName() : "بدون نام")
                     .barcode(barcode)
-                    .imageUrl(toAbsoluteImageUrl(product.getImageAddress()))
+                    // external CDN image — stored as the full URL (only our own
+                    // uploads are MinIO keys); resolved at read time
+                    .imageKey(toAbsoluteImageUrl(product.getImageAddress()))
                     .suggestedSellPrice(toRial(product.getPrice()))
                     .externalSource(EXTERNAL_SOURCE)
                     .externalSourceId(product.getId())

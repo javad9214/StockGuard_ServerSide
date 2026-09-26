@@ -1,6 +1,7 @@
 package com.stockguard.data.entity;
 
 import com.stockguard.data.enums.Unit;
+import com.stockguard.util.ImageUrlResolver;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -60,8 +61,14 @@ public class CatalogProduct {
     private Subcategory subcategory;
 
     // ================= IMAGE =================
-    @Column(columnDefinition = "TEXT")
-    private String imageUrl;
+    /**
+     * MinIO object key for images uploaded through this service. Never a
+     * full URL for our own uploads. Legacy rows (SNAPP/Daryamart imports)
+     * still hold the external absolute URL — resolved at read time by
+     * {@link #getImageUrl()}.
+     */
+    @Column(name = "image_key", columnDefinition = "TEXT")
+    private String imageKey;
 
     @Column(nullable = false)
     private String imageSource; // SNAPP_MARKET, MANUAL, OTHER
@@ -130,6 +137,17 @@ public class CatalogProduct {
         if (normalizedName == null && name != null) {
             normalizedName = normalize(name, brand);
         }
+    }
+
+    /**
+     * Computed, never persisted: the absolute URL clients load the image
+     * from, built at serialization time from {@code app.base-url} + imageKey
+     * (legacy external URLs pass through unchanged). Keeps the API contract
+     * ({@code imageUrl}) stable while the DB stores only the key.
+     */
+    @Transient
+    public String getImageUrl() {
+        return ImageUrlResolver.resolve(imageKey);
     }
 
     private String normalize(String name, String brand) {

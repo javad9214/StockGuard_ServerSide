@@ -35,15 +35,15 @@ public class BarcodeLookupController extends BaseController {
         try {
             return barcodeLookupService.lookupByBarcode(request.getBarcode())
                     .map(product -> {
-                        log.info("✅ Daryamart product found: {}", product.getName());
+                        log.info("✅ product found: {}", product.getName());
                         return generateOKResponse(product);
                     })
                     .orElseGet(() -> {
-                        log.warn("⚠️ No Daryamart product for barcode: {}", request.getBarcode());
+                        log.warn("⚠️ No product for barcode: {}", request.getBarcode());
                         return generateErrorResponse(HttpStatus.NOT_FOUND, ResponseCode.NOT_FOUND, BARCODE_NOT_FOUND_MESSAGE);
                     });
         } catch (Exception e) {
-            log.error("❌ Daryamart barcode lookup failed for {}: {}", request.getBarcode(), e.getMessage(), e);
+            log.error("❌ barcode lookup failed for {}: {}", request.getBarcode(), e.getMessage(), e);
             return generateErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ResponseCode.INTERNAL_ERROR, null);
         }
     }

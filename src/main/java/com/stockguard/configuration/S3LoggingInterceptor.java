@@ -6,6 +6,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,13 +49,13 @@ public class S3LoggingInterceptor implements ExecutionInterceptor {
     }
 
     private Map<String, List<String>> redact(Map<String, List<String>> headers) {
-        headers.replaceAll((name, values) -> {
-            if ("Authorization".equalsIgnoreCase(name) && !values.isEmpty()) {
-                String v = values.get(0);
-                return List.of(v.substring(0, Math.min(30, v.length())) + "…");
-            }
-            return values;
-        });
-        return headers;
+        // the SDK hands out an unmodifiable map — copy, never mutate
+        Map<String, List<String>> copy = new LinkedHashMap<>(headers);
+        List<String> auth = copy.get("Authorization");
+        if (auth != null && !auth.isEmpty()) {
+            String v = auth.get(0);
+            copy.put("Authorization", List.of(v.substring(0, Math.min(30, v.length())) + "…"));
+        }
+        return copy;
     }
 }

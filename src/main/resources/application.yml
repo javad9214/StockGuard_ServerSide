@@ -49,7 +49,10 @@ feign:
 
 
 minio:
-  endpoint: http://localhost:8083
+  # the S3 API port — NOT the console. 8083 serves the MinIO Console web UI,
+  # which answers signed S3 calls with a bare 400 (see S3Diagnostics probe).
+  # Default MinIO API port is 9000; verify with: ss -tlnp | grep minio
+  endpoint: http://localhost:9000
   access-key: admin
   secret-key: MINIOPassStockGuard
   bucket: stockguard-products-images

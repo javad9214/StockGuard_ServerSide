@@ -63,23 +63,31 @@ public class ImageStorageServiceImpl implements ImageStorageService {
 
     @Override
     public String upload(byte[] bytes, String contentType, String filename) {
-        validate(bytes, contentType);
+        // Content-Type strings from third-party servers can carry parameters
+        // (charset, ...) or odd casing — keep the bare media type, which is
+        // all an S3 Content-Type header may safely contain
+        String normalizedContentType =
+                contentType != null ? contentType.split(";")[0].trim().toLowerCase() : null;
+
+        validate(bytes, normalizedContentType);
         ensureBucketExists();
 
-        String key = buildKey(filename, contentType);
+        String key = buildKey(filename, normalizedContentType);
 
+        // Content-Length must come from the RequestBody only: emitting it via
+        // the marshaller as well makes some S3-compatible servers (MinIO)
+        // reject the request with a bare 400 Bad Request
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
-                        .contentType(contentType)
-                        .contentLength((long) bytes.length)
+                        .contentType(normalizedContentType)
                         .build(),
                 RequestBody.fromBytes(bytes)
         );
 
         log.info("Stored image '{}' ({} bytes, {}) in bucket '{}'",
-                key, bytes.length, contentType, bucket);
+                key, bytes.length, normalizedContentType, bucket);
         return key;
     }
 

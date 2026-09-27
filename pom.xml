@@ -10,9 +10,9 @@
 	</parent>
 	<groupId>com.stockguard</groupId>
 	<artifactId>stock-guard</artifactId>
-	<version>0.17.1</version>
+	<version>0.17.2</version>
 	<name>stock-guard</name>
-	<description>Demo project for Spring Boot</description>
+	<description>YAR-ANBAR server side</description>
 	<url/>
 	<licenses>
 		<license/>

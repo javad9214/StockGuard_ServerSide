@@ -151,8 +151,16 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             log.info("🖼️ Stored Daryamart image in MinIO: {} -> key {}", absolute, key);
             return key;
         } catch (Exception e) {
+            // S3Exception#toString is a bare "Bad Request" — surface MinIO's
+            // own error code/body so a persistent failure is diagnosable
+            String detail = e instanceof software.amazon.awssdk.services.s3.model.S3Exception s3
+                    ? "status=" + s3.statusCode()
+                    + ", requestId=" + s3.requestId()
+                    + ", code=" + (s3.awsErrorDetails() != null ? s3.awsErrorDetails().errorCode() : null)
+                    + ", message=" + (s3.awsErrorDetails() != null ? s3.awsErrorDetails().errorMessage() : null)
+                    : e.toString();
             log.warn("⚠️ Could not store Daryamart image in MinIO ({}), falling back to direct URL: {}",
-                    e.getMessage(), absolute);
+                    detail, absolute);
             return absolute;
         }
     }

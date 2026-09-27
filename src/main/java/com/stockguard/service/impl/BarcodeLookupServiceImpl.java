@@ -160,7 +160,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                     + ", message=" + (s3.awsErrorDetails() != null ? s3.awsErrorDetails().errorMessage() : null)
                     : e.toString();
             log.warn("⚠️ Could not store Daryamart image in MinIO ({}), falling back to direct URL: {}",
-                    detail, absolute);
+                    detail, absolute, e);
             return absolute;
         }
     }

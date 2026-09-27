@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "refresh_tokens", indexes = {
         @Index(name = "idx_token", columnList = "token"),
-        @Index(name = "idx_user_id", columnList = "user_id")
+        // index names are schema-global in PostgreSQL — a shared name with
+        // user_products.idx_user_id made the schema update fail on every boot
+        @Index(name = "idx_refresh_token_user_id", columnList = "user_id")
 })
 @Data
 @NoArgsConstructor

@@ -49,7 +49,7 @@ feign:
 
 
 minio:
-  endpoint: http://188.75.89.14:9000
+  endpoint: http://localhost:8083
   access-key: admin
   secret-key: MINIOPassStockGuard
   bucket: stockguard-products-images

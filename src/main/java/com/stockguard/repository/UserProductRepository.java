@@ -32,6 +32,10 @@ public interface UserProductRepository extends JpaRepository<UserProduct, Long> 
     // Check if user already adopted a catalog product
     boolean existsByUserIdAndCatalogProductIdAndIsDeletedFalse(Long userId, Long catalogProductId);
 
+    // The adopted row itself — adopt is idempotent, so a retried push resolves
+    // to the existing product instead of failing
+    Optional<UserProduct> findByUserIdAndCatalogProductIdAndIsDeletedFalse(Long userId, Long catalogProductId);
+
     // Get products by catalog product (for adoption count)
     List<UserProduct> findByCatalogProductIdAndIsDeletedFalse(Long catalogProductId);
 

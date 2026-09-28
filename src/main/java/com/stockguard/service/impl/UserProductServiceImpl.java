@@ -93,8 +93,14 @@ public class UserProductServiceImpl implements UserProductService {
     public UserProduct adoptCatalogProduct(Long userId, Long catalogProductId, UserProductDTO dto, MultipartFile image) throws IOException {
         log.info("User {} adopting catalog product: {}", userId, catalogProductId);
 
-        if (userProductRepository.existsByUserIdAndCatalogProductIdAndIsDeletedFalse(userId, catalogProductId)) {
-            throw new IllegalArgumentException("Product already adopted");
+        // Idempotent: a retried push (lost response, or an offline save synced
+        // later) must converge to the existing row instead of failing forever
+        Optional<UserProduct> existing = userProductRepository
+                .findByUserIdAndCatalogProductIdAndIsDeletedFalse(userId, catalogProductId);
+        if (existing.isPresent()) {
+            log.info("User {} already adopted catalog product {} -> returning existing product {}",
+                    userId, catalogProductId, existing.get().getId());
+            return existing.get();
         }
 
         CatalogProduct catalogProduct = catalogProductRepository.findById(catalogProductId)
@@ -113,13 +119,19 @@ public class UserProductServiceImpl implements UserProductService {
         }
         // Prefer an explicitly provided barcode; fall back to the catalog product's
         userProduct.setBarcode(dto.getBarcode() != null ? dto.getBarcode() : catalogProduct.getBarcode());
+        // The form name is the user's own label; without it the row answers
+        // pulls with no name (the catalog name only lives in the join)
+        userProduct.setCustomName(dto.getCustomName());
         userProduct.setPrice(dto.getPrice());
         userProduct.setCostPrice(dto.getCostPrice());
+        userProduct.setDescription(dto.getDescription());
         userProduct.setStock(dto.getStock() != null ? dto.getStock() : 0);
         userProduct.setMinStockLevel(dto.getMinStockLevel());
         userProduct.setMaxStockLevel(dto.getMaxStockLevel());
         userProduct.setUnit(dto.getUnit());
         userProduct.setSupplierId(dto.getSupplierId());
+        userProduct.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        userProduct.setTags(dto.getTags());
         userProduct.setIsDeleted(false);
         // Persisted server-side → confirmed write
         userProduct.setSynced(true);
@@ -184,6 +196,16 @@ public class UserProductServiceImpl implements UserProductService {
         if (dto.getTags() != null) {
             existing.setTags(dto.getTags());
         }
+        // Link the product to a catalog row (e.g. the app re-sends the link it
+        // holds locally). A link that already matches is a no-op; moving to a
+        // different catalog product goes through adopt's validation
+        if (dto.getCatalogProductId() != null) {
+            Long currentLinkId = existing.getCatalogProduct() != null
+                    ? existing.getCatalogProduct().getId() : null;
+            if (!dto.getCatalogProductId().equals(currentLinkId)) {
+                linkCatalogProduct(userId, existing, dto.getCatalogProductId());
+            }
+        }
         if (image != null && !image.isEmpty()) {
             existing.setImage(image.getBytes());
             existing.setImageType(image.getContentType());
@@ -222,6 +244,34 @@ public class UserProductServiceImpl implements UserProductService {
     @Override
     public UserProduct uploadProductImage(Long userId, Long productId, byte[] image, String imageType) {
         return null;
+    }
+
+    /**
+     * Attaches a catalog link to an existing product, mirroring adopt's
+     * validation and adoption-count bookkeeping. The user's own subcategory
+     * wins — the catalog's is only filled in when the product has none.
+     */
+    private void linkCatalogProduct(Long userId, UserProduct product, Long catalogProductId) {
+        Optional<UserProduct> holder = userProductRepository
+                .findByUserIdAndCatalogProductIdAndIsDeletedFalse(userId, catalogProductId);
+        if (holder.isPresent() && !holder.get().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Catalog product already adopted");
+        }
+
+        CatalogProduct catalogProduct = catalogProductRepository.findById(catalogProductId)
+                .orElseThrow(() -> new IllegalArgumentException("Catalog product not found"));
+
+        if (!catalogProduct.getIsActive() || catalogProduct.getStatus() != CatalogProduct.CatalogStatus.VERIFIED) {
+            throw new IllegalArgumentException("Catalog product is not available");
+        }
+
+        product.setCatalogProduct(catalogProduct);
+        if (product.getSubcategoryId() == null && catalogProduct.getSubcategory() != null) {
+            product.setSubcategoryId(catalogProduct.getSubcategory().getId());
+        }
+
+        catalogProduct.setAdoptionCount(catalogProduct.getAdoptionCount() + 1);
+        catalogProductRepository.save(catalogProduct);
     }
 
     /**

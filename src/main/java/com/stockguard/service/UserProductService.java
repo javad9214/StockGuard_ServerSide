@@ -25,7 +25,5 @@ public interface UserProductService {
     void deleteUserProduct(Long userId, Long productId);
 
     Page<UserProductResponseDTO> searchUserProducts(Long userId, String query, Pageable pageable);
-
-    UserProduct uploadProductImage(Long userId, Long productId, byte[] image, String imageType);
 }
 

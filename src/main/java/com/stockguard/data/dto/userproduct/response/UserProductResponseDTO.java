@@ -12,9 +12,11 @@ import java.util.Base64;
 
 /**
  * Response DTO for user products. Mirrors the app's UserProductResponseDto
- * field-for-field so barcode and image round-trip between server and app:
- * the image is returned Base64-encoded and is decoded/persisted locally by
- * the app after every pull.
+ * field-for-field so barcode and image round-trip between server and app.
+ * Image contract: rows with an uploaded image deliver it inline as Base64
+ * (decoded/persisted locally by the app after every pull); rows without one
+ * fall back to {@code imageUrl} — the linked catalog product's image URL —
+ * so a fresh device pull still renders a picture.
  */
 @Getter
 @Builder
@@ -32,6 +34,9 @@ public class UserProductResponseDTO {
 
     private String imageType;
     private String image; // Base64-encoded image bytes
+    // Catalog image URL for rows without their own image; null when the
+    // image travels inline above or the row has neither
+    private String imageUrl;
 
     private Integer subcategoryId;
     private Integer categoryId;
@@ -54,15 +59,14 @@ public class UserProductResponseDTO {
     private LocalDateTime updatedAt;
 
     // Mapper
-    public static UserProductResponseDTO from(UserProduct p) {
-        return from(p, null);
-    }
 
     /**
      * @param subcategory resolved subcategory (with its category) used to fill
      *                    the name fields; may be null when none is linked
+     * @param imageUrl    catalog image URL resolved by the caller (batched);
+     *                   used only when the row carries no image of its own
      */
-    public static UserProductResponseDTO from(UserProduct p, Subcategory subcategory) {
+    public static UserProductResponseDTO from(UserProduct p, Subcategory subcategory, String imageUrl) {
         Category category = subcategory != null ? subcategory.getCategory() : null;
         return UserProductResponseDTO.builder()
                 .id(p.getId())
@@ -75,6 +79,7 @@ public class UserProductResponseDTO {
                 .description(p.getDescription())
                 .imageType(p.getImageType())
                 .image(p.getImage() != null ? Base64.getEncoder().encodeToString(p.getImage()) : null)
+                .imageUrl(imageUrl)
                 .subcategoryId(subcategory != null ? subcategory.getId() : p.getSubcategoryId())
                 .categoryId(category != null ? category.getId() : null)
                 .subcategoryName(subcategory != null ? subcategory.getName() : null)

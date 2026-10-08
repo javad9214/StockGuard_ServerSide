@@ -14,6 +14,11 @@ public class UserInvoiceDTO {
 
     private Long localId;
 
+    // When the device knows the server row (it pushed or pulled this invoice
+    // before), upsert by serverId; a second device pushing the same invoice
+    // under a different localId must not duplicate it.
+    private Long serverId;
+
     private String prefix;
     private Long invoiceNumber;
     private Long invoiceDate;        // epoch millis, user-chosen date

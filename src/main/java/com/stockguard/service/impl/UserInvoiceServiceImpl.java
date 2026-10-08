@@ -71,9 +71,10 @@ public class UserInvoiceServiceImpl implements UserInvoiceService {
         List<SyncedInvoiceDTO> result = new ArrayList<>(batch.size());
         for (UserInvoiceDTO dto : batch) {
             // Upsert by (userId, localId): a retried batch after a network drop
-            // updates the same server row instead of duplicating the invoice
-            UserInvoice invoice = userInvoiceRepository.findByUserIdAndLocalId(userId, dto.getLocalId())
-                    .orElseGet(UserInvoice::new);
+            // updates the same server row instead of duplicating the invoice.
+            // serverId takes precedence when the device knows it — e.g. it is
+            // re-pushing an invoice originally pulled from another device.
+            UserInvoice invoice = resolvePushTarget(userId, dto);
 
             invoice.setUserId(userId);
             invoice.setLocalId(dto.getLocalId());
@@ -132,6 +133,23 @@ public class UserInvoiceServiceImpl implements UserInvoiceService {
 
         invoice.setIsDeleted(true);
         userInvoiceRepository.save(invoice);
+    }
+
+    /**
+     * serverId first (device knows the exact server row); falls back to the
+     * (userId, localId) upsert key; a stale serverId that no longer resolves
+     * falls through to the localId lookup instead of failing the push.
+     */
+    private UserInvoice resolvePushTarget(Long userId, UserInvoiceDTO dto) {
+        if (dto.getServerId() != null) {
+            Optional<UserInvoice> byServerId =
+                    userInvoiceRepository.findWithItemsByIdAndUserId(dto.getServerId(), userId);
+            if (byServerId.isPresent()) {
+                return byServerId.get();
+            }
+        }
+        return userInvoiceRepository.findByUserIdAndLocalId(userId, dto.getLocalId())
+                .orElseGet(UserInvoice::new);
     }
 
     private void validateBatch(List<UserInvoiceDTO> batch) {

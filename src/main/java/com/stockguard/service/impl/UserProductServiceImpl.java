@@ -42,14 +42,16 @@ public class UserProductServiceImpl implements UserProductService {
     public Page<UserProductResponseDTO> getUserProducts(Long userId, Pageable pageable) {
         Page<UserProduct> products = userProductRepository.findByUserIdAndIsDeletedFalse(userId, pageable);
         Map<Integer, Subcategory> subcategoriesById = findSubcategoriesWithCategory(products.getContent());
-        return products.map(p -> toResponse(p, subcategoriesById));
+        Map<Long, String> imageUrlsByCatalogId = findImageUrlsByCatalogId(products.getContent());
+        return products.map(p -> toResponse(p, subcategoriesById, imageUrlsByCatalogId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<UserProductResponseDTO> getUserProductById(Long userId, Long productId) {
         return userProductRepository.findByIdAndUserId(productId, userId)
-                .map(p -> toResponse(p, findSubcategoriesWithCategory(List.of(p))));
+                .map(p -> toResponse(p, findSubcategoriesWithCategory(List.of(p)),
+                        findImageUrlsByCatalogId(List.of(p))));
     }
 
     @Override
@@ -238,12 +240,8 @@ public class UserProductServiceImpl implements UserProductService {
     public Page<UserProductResponseDTO> searchUserProducts(Long userId, String query, Pageable pageable) {
         Page<UserProduct> products = userProductRepository.searchUserProducts(userId, query, pageable);
         Map<Integer, Subcategory> subcategoriesById = findSubcategoriesWithCategory(products.getContent());
-        return products.map(p -> toResponse(p, subcategoriesById));
-    }
-
-    @Override
-    public UserProduct uploadProductImage(Long userId, Long productId, byte[] image, String imageType) {
-        return null;
+        Map<Long, String> imageUrlsByCatalogId = findImageUrlsByCatalogId(products.getContent());
+        return products.map(p -> toResponse(p, subcategoriesById, imageUrlsByCatalogId));
     }
 
     /**
@@ -293,8 +291,43 @@ public class UserProductServiceImpl implements UserProductService {
                 .collect(Collectors.toMap(Subcategory::getId, Function.identity()));
     }
 
-    private UserProductResponseDTO toResponse(UserProduct product, Map<Integer, Subcategory> subcategoriesById) {
-        return UserProductResponseDTO.from(product, resolveSubcategory(product, subcategoriesById));
+    private UserProductResponseDTO toResponse(UserProduct product,
+                                              Map<Integer, Subcategory> subcategoriesById,
+                                              Map<Long, String> imageUrlsByCatalogId) {
+        return UserProductResponseDTO.from(product, resolveSubcategory(product, subcategoriesById),
+                resolveImageUrl(product, imageUrlsByCatalogId));
+    }
+
+    /**
+     * Rows with an uploaded image deliver it inline (Base64) — no URL for
+     * those. Adopted rows without one fall back to the catalog image URL so
+     * a pull on a fresh device still renders a picture.
+     */
+    private String resolveImageUrl(UserProduct product, Map<Long, String> imageUrlsByCatalogId) {
+        if (product.getImage() != null || product.getCatalogProduct() == null) {
+            return null;
+        }
+        return imageUrlsByCatalogId.get(product.getCatalogProduct().getId());
+    }
+
+    /**
+     * Resolves the catalog image URLs referenced by products lacking their own
+     * image in a single query, so mapping a page never triggers a lazy load
+     * per row. Catalog rows without a usable image are left out of the map.
+     */
+    private Map<Long, String> findImageUrlsByCatalogId(Collection<UserProduct> products) {
+        Set<Long> catalogIds = products.stream()
+                .filter(p -> p.getImage() == null && p.getCatalogProduct() != null)
+                .map(p -> p.getCatalogProduct().getId())
+                .collect(Collectors.toSet());
+
+        if (catalogIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return catalogProductRepository.findAllById(catalogIds).stream()
+                .filter(c -> c.getImageUrl() != null)
+                .collect(Collectors.toMap(CatalogProduct::getId, CatalogProduct::getImageUrl));
     }
 
     /**

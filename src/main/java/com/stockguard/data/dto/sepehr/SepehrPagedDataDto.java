@@ -1,4 +1,4 @@
-package com.stockguard.data.dto.daryamart;
+package com.stockguard.data.dto.sepehr;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
@@ -7,9 +7,9 @@ import java.util.List;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class DaryamartPagedDataDto {
+public class SepehrPagedDataDto {
 
-    private List<DaryamartProductDto> source;
+    private List<SepehrProductDto> source;
 
     private Integer currentPage;
 

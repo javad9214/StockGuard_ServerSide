@@ -1,9 +1,12 @@
 package com.stockguard.service.impl;
 
 import com.stockguard.client.DaryamartClient;
+import com.stockguard.client.SehSootehClient;
+import com.stockguard.client.SepehrShopApi;
+import com.stockguard.client.TisaMarketClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
-import com.stockguard.data.dto.daryamart.DaryamartProductDto;
-import com.stockguard.data.dto.daryamart.DaryamartSearchResponseDto;
+import com.stockguard.data.dto.sepehr.SepehrProductDto;
+import com.stockguard.data.dto.sepehr.SepehrSearchResponseDto;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;
@@ -23,6 +26,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Barcode lookup with an ordered chain of external shops, all running on
+ * the Sepehr platform (same API, separate catalogs): Daryamart first —
+ * widest catalog — then Seh Sooteh and Tisa Market as fallbacks. The
+ * first shop that carries the barcode wins; a shop that is unreachable
+ * or errors is skipped so the next one still gets a chance.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,19 +41,40 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private static final int PAGE_NUMBER = 1;
     private static final int PAGE_SIZE = 50;
 
-    private static final String EXTERNAL_SOURCE = "DARYAMART";
+    private static final String SOURCE_DARYAMART = "DARYAMART";
+    private static final String SOURCE_SEHSOOTEH = "SEHSOOTEH";
+    private static final String SOURCE_TISAMARKET = "TISAMARKET";
     private static final String UNKNOWN_CATEGORY = "Unknown";
+    private static final String UNNAMED_PLACEHOLDER = "بدون نام";
 
     private static final BigDecimal TOMAN_TO_RIAL = BigDecimal.TEN;
 
     private final DaryamartClient daryamartClient;
+    private final SehSootehClient sehSootehClient;
+    private final TisaMarketClient tisaMarketClient;
     private final CatalogProductRepository catalogProductRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
     private final ImageStorageService imageStorageService;
 
     @Value("${daryamart.api.base-url}")
-    private String baseUrl;
+    private String daryamartBaseUrl;
+
+    @Value("${sehsooteh.api.base-url}")
+    private String sehSootehBaseUrl;
+
+    @Value("${tisamarket.api.base-url}")
+    private String tisamarketBaseUrl;
+
+    private record ShopSource(String name, String baseUrl, SepehrShopApi client) {
+    }
+
+    private List<ShopSource> shopSources() {
+        return List.of(
+                new ShopSource(SOURCE_DARYAMART, daryamartBaseUrl, daryamartClient),
+                new ShopSource(SOURCE_SEHSOOTEH, sehSootehBaseUrl, sehSootehClient),
+                new ShopSource(SOURCE_TISAMARKET, tisamarketBaseUrl, tisaMarketClient));
+    }
 
     @Override
     public Optional<BarcodeProductResponseDTO> lookupByBarcode(String barcode) {
@@ -52,83 +83,136 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             CatalogProduct product = local.get();
             log.info("🏷️ Barcode found in catalog: {}", barcode);
 
-            if (product.getSuggestedSellPrice() == null
-                    || !ImageUrlResolver.isStoredKey(product.getImageKey())) {
-                enrichFromDaryamart(barcode, product);
+            if (needsEnrichment(product)) {
+                enrichFromShops(barcode, product);
             }
             return Optional.of(toResponse(product));
         }
 
-        log.info("🏷️ Barcode not in catalog, falling back to Daryamart: {}", barcode);
-        return lookupInDaryamart(barcode);
+        log.info("🏷️ Barcode not in catalog, searching external shops: {}", barcode);
+        return lookupInShops(barcode);
     }
 
     /**
-     * Catalog hit with a missing price or an image we don't own (null, blank or
-     * a legacy external URL saved before MinIO ingestion): ask Daryamart for the
+     * A catalog hit short-circuits (no external calls) only when the row is
+     * complete: a real title, a stored image and a sell price. Cost price is
+     * deliberately not part of the trigger — the shops never return one, so
+     * including it would re-query them on every lookup with nothing to
+     * gain; cost price is only filled by admin/user data entry.
+     */
+    private boolean needsEnrichment(CatalogProduct product) {
+        return titleMissing(product)
+                || product.getSuggestedSellPrice() == null
+                || !ImageUrlResolver.isStoredKey(product.getImageKey());
+    }
+
+    private boolean titleMissing(CatalogProduct product) {
+        return !StringUtils.hasText(product.getName())
+                || UNNAMED_PLACEHOLDER.equals(product.getName());
+    }
+
+    /**
+     * Catalog hit with a missing title (blank or the "بدون نام" placeholder),
+     * sell price, or an image we don't own (null, blank or a legacy external
+     * URL saved before MinIO ingestion): ask the external shops for the
      * missing fields and persist them so the row is complete from here on.
+     * Shops are tried in order until everything they can supply is filled.
      * Best-effort — the (possibly still incomplete) catalog response is
      * returned either way.
      */
-    private void enrichFromDaryamart(String barcode, CatalogProduct product) {
+    private void enrichFromShops(String barcode, CatalogProduct product) {
         try {
-            log.info("🔄 Catalog product {} lacks price/image, refreshing from Daryamart: {}",
+            log.info("🔄 Catalog product {} lacks title/image/prices, refreshing from external shops: {}",
                     product.getId(), barcode);
 
-            findInDaryamart(barcode).ifPresent(dto -> {
-                boolean changed = false;
+            boolean changed = false;
+            for (ShopSource source : shopSources()) {
+                boolean titleMissing = titleMissing(product);
+                boolean priceMissing = product.getSuggestedSellPrice() == null;
+                boolean imageMissing = !ImageUrlResolver.isStoredKey(product.getImageKey());
+                if (!titleMissing && !priceMissing && !imageMissing) {
+                    break;
+                }
 
-                if (product.getSuggestedSellPrice() == null) {
+                Optional<SepehrProductDto> found = findInShop(source, barcode);
+                if (found.isEmpty()) {
+                    continue;
+                }
+                SepehrProductDto dto = found.get();
+                boolean contributed = false;
+
+                if (titleMissing && StringUtils.hasText(dto.getName())) {
+                    product.setName(dto.getName());
+                    contributed = true;
+                }
+                if (priceMissing) {
                     Long rial = toRial(dto.getPrice());
                     if (rial != null) {
                         product.setSuggestedSellPrice(rial);
-                        changed = true;
+                        contributed = true;
                     }
                 }
-                if (!ImageUrlResolver.isStoredKey(product.getImageKey())
-                        && StringUtils.hasText(dto.getImageAddress())) {
-                    String stored = storeImage(dto.getImageAddress());
+                if (imageMissing && StringUtils.hasText(dto.getImageAddress())) {
+                    String stored = storeImage(source, dto.getImageAddress());
                     if (stored != null) {
                         product.setImageKey(stored);
-                        changed = true;
+                        contributed = true;
                     }
                 }
 
-                if (changed) {
-                    catalogProductRepository.save(product);
-                    log.info("✅ Enriched catalog product {} from Daryamart", product.getId());
-                } else {
-                    log.info("🔍 Daryamart had nothing new for catalog product {}", product.getId());
+                if (contributed) {
+                    changed = true;
+                    log.info("✅ Enriched catalog product {} from {}",
+                            product.getId(), source.name());
                 }
-            });
+            }
+
+            if (changed) {
+                catalogProductRepository.save(product);
+            } else {
+                log.info("🔍 External shops had nothing new for catalog product {}", product.getId());
+            }
         } catch (Exception e) {
-            log.warn("⚠️ Could not enrich catalog product {} from Daryamart: {}",
+            log.warn("⚠️ Could not enrich catalog product {} from external shops: {}",
                     product.getId(), e.getMessage());
         }
     }
 
-    private Optional<BarcodeProductResponseDTO> lookupInDaryamart(String barcode) {
-        return findInDaryamart(barcode).map(product -> {
-            CatalogProduct saved = saveToCatalog(barcode, product);
-            return saved != null ? toResponse(saved) : toResponse(product);
-        });
+    private Optional<BarcodeProductResponseDTO> lookupInShops(String barcode) {
+        for (ShopSource source : shopSources()) {
+            Optional<SepehrProductDto> found = findInShop(source, barcode);
+            if (found.isPresent()) {
+                CatalogProduct saved = saveToCatalog(source, barcode, found.get());
+                return Optional.of(saved != null ? toResponse(saved) : toResponse(source, found.get()));
+            }
+        }
+        log.info("🔍 No external shop carries barcode: {}", barcode);
+        return Optional.empty();
     }
 
-    private Optional<DaryamartProductDto> findInDaryamart(String barcode) {
-
-        DaryamartSearchResponseDto response =
-                daryamartClient.searchProducts(barcode, PAGE_NUMBER, PAGE_SIZE);
-
-        if (response == null || !Boolean.TRUE.equals(response.getSuccess())
-                || response.getData() == null) {
-            log.warn("⚠️ Daryamart search failed for barcode {}: {}",
-                    barcode, response != null ? response.getMessage() : "null response");
+    /**
+     * Queries one shop; a transport failure (timeout, shop down) only skips
+     * that shop so the chain can continue with the next one.
+     */
+    private Optional<SepehrProductDto> findInShop(ShopSource source, String barcode) {
+        SepehrSearchResponseDto response;
+        try {
+            response = source.client().searchProducts(barcode, PAGE_NUMBER, PAGE_SIZE);
+        } catch (Exception e) {
+            log.warn("⚠️ {} lookup failed for barcode {}: {}", source.name(), barcode, e.getMessage());
             return Optional.empty();
         }
 
-        List<DaryamartProductDto> products = response.getData().getSource();
+        if (response == null || !Boolean.TRUE.equals(response.getSuccess())
+                || response.getData() == null) {
+            log.warn("⚠️ {} search failed for barcode {}: {}",
+                    source.name(), barcode, response != null ? response.getMessage() : "null response");
+            return Optional.empty();
+        }
+
+        List<SepehrProductDto> products = response.getData().getSource();
         if (products == null || products.isEmpty()) {
-            log.info("🔍 No Daryamart product found for barcode: {}", barcode);
+            log.info("🔍 No {} product found for barcode: {}", source.name(), barcode);
             return Optional.empty();
         }
 
@@ -136,19 +220,19 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     }
 
     /**
-     * Stores the Daryamart image in MinIO and returns the object key, so the DB
-     * owns the image instead of hotlinking Daryamart. Falls back to the absolute
+     * Stores the shop image in MinIO and returns the object key, so the DB
+     * owns the image instead of hotlinking the shop. Falls back to the absolute
      * external URL when the download/upload fails — the resolver passes legacy
      * absolute URLs through, so the image still renders.
      */
-    private String storeImage(String imageAddress) {
-        String absolute = toAbsoluteImageUrl(imageAddress);
+    private String storeImage(ShopSource source, String imageAddress) {
+        String absolute = toAbsoluteImageUrl(source, imageAddress);
         if (absolute == null) {
             return null;
         }
         try {
             String key = imageStorageService.storeFromUrl(absolute);
-            log.info("🖼️ Stored Daryamart image in MinIO: {} -> key {}", absolute, key);
+            log.info("🖼️ Stored {} image in MinIO: {} -> key {}", source.name(), absolute, key);
             return key;
         } catch (Exception e) {
             // S3Exception#toString is a bare "Bad Request" — surface MinIO's
@@ -159,38 +243,38 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                     + ", code=" + (s3.awsErrorDetails() != null ? s3.awsErrorDetails().errorCode() : null)
                     + ", message=" + (s3.awsErrorDetails() != null ? s3.awsErrorDetails().errorMessage() : null)
                     : e.toString();
-            log.warn("⚠️ Could not store Daryamart image in MinIO ({}), falling back to direct URL: {}",
-                    detail, absolute, e);
+            log.warn("⚠️ Could not store {} image in MinIO ({}), falling back to direct URL: {}",
+                    source.name(), detail, absolute, e);
             return absolute;
         }
     }
 
     /**
      * @return the persisted row, or null when the save was skipped/failed —
-     * callers then answer from the raw Daryamart payload.
+     * callers then answer from the raw shop payload.
      */
-    private CatalogProduct saveToCatalog(String barcode, DaryamartProductDto product) {
+    private CatalogProduct saveToCatalog(ShopSource source, String barcode, SepehrProductDto product) {
         if (product.getId() == null) {
-            log.warn("⚠️ Daryamart product has no id, not saving to catalog: {}", barcode);
+            log.warn("⚠️ {} product has no id, not saving to catalog: {}", source.name(), barcode);
             return null;
         }
 
         try {
             Optional<CatalogProduct> existing = catalogProductRepository
-                    .findByExternalSourceAndExternalSourceId(EXTERNAL_SOURCE, product.getId());
+                    .findByExternalSourceAndExternalSourceId(source.name(), product.getId());
             if (existing.isPresent()) {
-                log.debug("⏭ Daryamart product already in catalog: id={}", product.getId());
+                log.debug("⏭ {} product already in catalog: id={}", source.name(), product.getId());
                 return existing.get();
             }
 
             CatalogProduct saved = catalogProductRepository.save(CatalogProduct.builder()
-                    .name(StringUtils.hasText(product.getName()) ? product.getName() : "بدون نام")
+                    .name(StringUtils.hasText(product.getName()) ? product.getName() : UNNAMED_PLACEHOLDER)
                     .barcode(barcode)
-                    .imageKey(storeImage(product.getImageAddress()))
+                    .imageKey(storeImage(source, product.getImageAddress()))
                     .suggestedSellPrice(toRial(product.getPrice()))
-                    .externalSource(EXTERNAL_SOURCE)
+                    .externalSource(source.name())
                     .externalSourceId(product.getId())
-                    .imageSource(EXTERNAL_SOURCE)
+                    .imageSource(source.name())
                     .subcategory(resolveUnknownSubcategory())
                     .status(CatalogProduct.CatalogStatus.VERIFIED)
                     .qualityScore(70)
@@ -198,14 +282,14 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                     .isActive(true)
                     .build());
 
-            log.info("✅ Saved Daryamart product to catalog: barcode={}, name={}, catalogId={}",
-                    barcode, saved.getName(), saved.getId());
+            log.info("✅ Saved {} product to catalog: barcode={}, name={}, catalogId={}",
+                    source.name(), barcode, saved.getName(), saved.getId());
             return saved;
         } catch (Exception e) {
             // the lookup response must still be returned even if caching fails
             // (e.g. concurrent save of the same barcode)
-            log.warn("⚠️ Could not save Daryamart product to catalog: barcode={}, reason={}",
-                    barcode, e.getMessage());
+            log.warn("⚠️ Could not save {} product to catalog: barcode={}, reason={}",
+                    source.name(), barcode, e.getMessage());
             return null;
         }
     }
@@ -223,10 +307,10 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                                 .build()));
     }
 
-    private BarcodeProductResponseDTO toResponse(DaryamartProductDto product) {
+    private BarcodeProductResponseDTO toResponse(ShopSource source, SepehrProductDto product) {
         return BarcodeProductResponseDTO.builder()
                 .name(product.getName())
-                .imageUrl(toAbsoluteImageUrl(product.getImageAddress()))
+                .imageUrl(toAbsoluteImageUrl(source, product.getImageAddress()))
                 .sellPrice(toRial(product.getPrice()))
                 .build();
     }
@@ -241,14 +325,14 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                 .build();
     }
 
-    private String toAbsoluteImageUrl(String imageAddress) {
+    private String toAbsoluteImageUrl(ShopSource source, String imageAddress) {
         if (!StringUtils.hasText(imageAddress)) {
             return null;
         }
         if (imageAddress.startsWith("http://") || imageAddress.startsWith("https://")) {
             return imageAddress;
         }
-        return baseUrl + imageAddress;
+        return source.baseUrl() + imageAddress;
     }
 
     private Long toRial(Long tomanPrice) {

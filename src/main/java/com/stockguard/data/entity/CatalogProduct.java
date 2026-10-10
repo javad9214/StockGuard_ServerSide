@@ -140,6 +140,19 @@ public class CatalogProduct {
     }
 
     /**
+     * Re-derive normalizedName whenever a managed row is updated — e.g.
+     * barcode-lookup enrichment replaces the "بدون نام" placeholder title
+     * with the shop's real name after persist. Recomputing from an
+     * unchanged name yields the same value, so every update path is safe.
+     */
+    @PreUpdate
+    public void preUpdate() {
+        if (name != null) {
+            normalizedName = normalize(name, brand);
+        }
+    }
+
+    /**
      * Computed, never persisted: the absolute URL clients load the image
      * from, built at serialization time from {@code app.base-url} + imageKey
      * (legacy external URLs pass through unchanged). Keeps the API contract

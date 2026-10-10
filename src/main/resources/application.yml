@@ -35,9 +35,19 @@ jwt:
   refresh:
     expiration: 2592000000
 
+# external barcode-lookup shops, all on the Sepehr platform (same API,
+# separate catalogs) — tried in this order until one carries the barcode
 daryamart:
   api:
     base-url: https://daryamart.ir
+
+sehsooteh:
+  api:
+    base-url: https://3sooteh.com
+
+tisamarket:
+  api:
+    base-url: https://tisamarket.co
 
 feign:
   client:

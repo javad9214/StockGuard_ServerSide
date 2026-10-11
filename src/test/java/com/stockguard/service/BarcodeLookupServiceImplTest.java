@@ -1,6 +1,7 @@
 package com.stockguard.service;
 
 import com.stockguard.client.DaryamartClient;
+import com.stockguard.client.KowsarplazaSource;
 import com.stockguard.client.SehSootehClient;
 import com.stockguard.client.SoocenterSource;
 import com.stockguard.client.TisaMarketClient;
@@ -120,7 +121,7 @@ class BarcodeLookupServiceImplTest {
             TisaMarketClient tisaMarket,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
-        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenterMissing(), repo, imageStorage);
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenterMissing(), kowsarplazaMissing(), repo, imageStorage);
     }
 
     private BarcodeLookupServiceImpl serviceWithClients(
@@ -130,11 +131,23 @@ class BarcodeLookupServiceImplTest {
             SoocenterSource soocenter,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenter, kowsarplazaMissing(), repo, imageStorage);
+    }
+
+    private BarcodeLookupServiceImpl serviceWithClients(
+            DaryamartClient daryamart,
+            SehSootehClient sehSooteh,
+            TisaMarketClient tisaMarket,
+            SoocenterSource soocenter,
+            KowsarplazaSource kowsarplaza,
+            CatalogProductRepository repo,
+            com.stockguard.service.ImageStorageService imageStorage) {
         BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(
                 daryamart,
                 sehSooteh,
                 tisaMarket,
                 soocenter,
+                kowsarplaza,
                 repo,
                 org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
                 org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
@@ -158,9 +171,18 @@ class BarcodeLookupServiceImplTest {
     }
 
 
-    /** soocenter stub that misses every barcode (chain tests only need it inert). */
+    /** mweb stubs that miss every barcode (chain tests only need them inert). */
     private SoocenterSource soocenterMissing() {
-        return new SoocenterSource() {
+        return new SoocenterSource("https://4soocenter.ir") {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return "<div class=\"header-search-not-found\"> نتیجه‌ای یافت نشد </div>";
+            }
+        };
+    }
+
+    private KowsarplazaSource kowsarplazaMissing() {
+        return new KowsarplazaSource("https://kowsarplaza.com") {
             @Override
             protected String searchSnippet(String barcode) {
                 return "<div class=\"header-search-not-found\"> نتیجه‌ای یافت نشد </div>";
@@ -449,7 +471,7 @@ class BarcodeLookupServiceImplTest {
                 "offers":{"@type":"Offer","price":"185000","priceCurrency":"IRR",
                 "url":"https://4soocenter.ir/product/%d9%85%d8%ad%d8%b5%d9%88%d9%84-4928/"}}</script>
                 """;
-        SoocenterSource soocenter = new SoocenterSource() {
+        SoocenterSource soocenter = new SoocenterSource("https://4soocenter.ir") {
             @Override
             protected String searchSnippet(String barcode) {
                 return snippet;
@@ -478,5 +500,51 @@ class BarcodeLookupServiceImplTest {
         org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
                 "SOOCENTER".equals(p.getExternalSource())
                         && Long.valueOf(4928L).equals(p.getExternalSourceId())));
+    }
+
+    @Test
+    void fallsBackToKowsarplazaWhenAllEarlierShopsMiss() {
+        // captured verbatim from kowsarplaza.com (mweb admin-ajax + single-product page)
+        String snippet = """
+                <div class="ajax_search_list horizontal_scroll_css"><div class="post_with_thumb"><div class="post-thumb"><img width="300" height="300" src="http://kowsarplaza.com/wp-content/uploads/2021/11/1-5.gif" class="attachment-mini_blog size-mini_blog wp-post-image" alt="شوکو کیک" /></div><div class="inner"><a href="https://kowsarplaza.com/product/%d8%b4%d9%88%da%a9%d9%88-%da%a9%db%8c%da%a9-%d8%af%d9%88%d9%82%d9%84%d9%88-%d8%b1%d9%88%da%a9%d8%b4%d8%af%d8%a7%d8%b1-%d8%a2%d9%84%d8%a8%db%8c%d9%86%d8%a7-40%da%af%d8%b1%d9%85-%d8%b4%db%8c%d8%b1%db%8c/" title="شوکو کیک دوقلو روکشدار آلبینا 40گرم شیرین عسل 6261149137093" target="_blank">شوکو کیک دوقلو روکشدار آلبینا 40گرم شیرین عسل 6261149137093</a><span class="price"><del aria-hidden="true"><span class="woocommerce-Price-amount amount"><bdi>25.000<span class="woocommerce-Price-currencySymbol">تومان</span></bdi></span></del> <ins aria-hidden="true"><span class="woocommerce-Price-amount amount"><bdi>24.200<span class="woocommerce-Price-currencySymbol">تومان</span></bdi></span></ins></span></div></div></div>
+                """;
+        String productPage = """
+                <html><head><title>شوکو کیک دوقلو روکشدار آلبینا 40گرم شیرین عسل 6261149137093 &#8211; کوثرپلازا</title></head>
+                <body class="single single-product postid-27898 theme-mweb-digiland-pro woocommerce">
+                <img src="https://kowsarplaza.com/wp-content/uploads/2021/11/1-5.gif" class="woocommerce-main-image" data-src="https://kowsarplaza.com/wp-content/uploads/2021/11/1-5.gif" />
+                <p class="price single_price"><del><bdi>25.000<span>تومان</span></bdi></del> <ins><bdi>24.200<span>تومان</span></bdi></ins></p>
+                </body></html>
+                """;
+        KowsarplazaSource kowsarplaza = new KowsarplazaSource("https://kowsarplaza.com") {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return snippet;
+            }
+
+            @Override
+            protected String fetchProductPage(String productUrl) {
+                return productPage;
+            }
+        };
+
+        CatalogProductRepository repo = emptyCatalogRepository();
+        BarcodeLookupServiceImpl service = serviceWithClients(
+                FakeClients.daryamart(emptyResponse()),
+                FakeClients.sehSooteh(emptyResponse()),
+                FakeClients.tisaMarket(emptyResponse()),
+                soocenterMissing(),
+                kowsarplaza,
+                repo,
+                imageStorageFailingWith("MinIO unavailable in unit test"));
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6261149137093");
+
+        assertThat(result).isPresent();
+        // trailing barcode stripped from the shop's title, Toman price ×10
+        assertThat(result.get().getName()).isEqualTo("شوکو کیک دوقلو روکشدار آلبینا 40گرم شیرین عسل");
+        assertThat(result.get().getSellPrice()).isEqualTo(242000L);
+        org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
+                "KOWSARPLAZA".equals(p.getExternalSource())
+                        && Long.valueOf(27898L).equals(p.getExternalSourceId())));
     }
 }

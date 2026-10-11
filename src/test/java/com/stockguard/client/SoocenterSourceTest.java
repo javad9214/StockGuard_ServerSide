@@ -1,7 +1,6 @@
 package com.stockguard.client;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -40,7 +39,7 @@ class SoocenterSourceTest {
             """;
 
     private SoocenterSource sourceReturning(String snippet, String page) {
-        SoocenterSource source = new SoocenterSource() {
+        return new SoocenterSource("https://4soocenter.ir") {
             @Override
             protected String searchSnippet(String barcode) {
                 return snippet;
@@ -51,8 +50,6 @@ class SoocenterSourceTest {
                 return page;
             }
         };
-        ReflectionTestUtils.setField(source, "baseUrl", "https://4soocenter.ir");
-        return source;
     }
 
     @Test

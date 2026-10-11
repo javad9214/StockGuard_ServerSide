@@ -53,6 +53,10 @@ soocenter:
   api:
     base-url: https://4soocenter.ir
 
+kowsarplaza:
+  api:
+    base-url: https://kowsarplaza.com
+
 feign:
   client:
     config:

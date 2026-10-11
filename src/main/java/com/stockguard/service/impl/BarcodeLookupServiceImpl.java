@@ -3,6 +3,7 @@ package com.stockguard.service.impl;
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.client.ExternalBarcodeSource;
 import com.stockguard.client.ExternalProductDto;
+import com.stockguard.client.KowsarplazaSource;
 import com.stockguard.client.SehSootehClient;
 import com.stockguard.client.SepehrShopSource;
 import com.stockguard.client.SoocenterSource;
@@ -29,9 +30,9 @@ import java.util.Optional;
 /**
  * Barcode lookup with an ordered chain of external shops: the three Sepehr
  * platform stores first (Daryamart — widest catalog — then Seh Sooteh and
- * Tisa Market), then the 4soocenter (mweb/WooCommerce) source. The first
- * shop that carries the barcode wins; a shop that is unreachable or errors
- * is skipped so the next one still gets a chance.
+ * Tisa Market), then the mweb/WooCommerce sources 4soocenter and Kowsarplaza.
+ * The first shop that carries the barcode wins; a shop that is unreachable
+ * or errors is skipped so the next one still gets a chance.
  */
 @Slf4j
 @Service
@@ -48,6 +49,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private final SehSootehClient sehSootehClient;
     private final TisaMarketClient tisaMarketClient;
     private final SoocenterSource soocenterSource;
+    private final KowsarplazaSource kowsarplazaSource;
     private final CatalogProductRepository catalogProductRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
@@ -67,7 +69,8 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                 new SepehrShopSource(SOURCE_DARYAMART, daryamartBaseUrl, daryamartClient),
                 new SepehrShopSource(SOURCE_SEHSOOTEH, sehSootehBaseUrl, sehSootehClient),
                 new SepehrShopSource(SOURCE_TISAMARKET, tisamarketBaseUrl, tisaMarketClient),
-                soocenterSource);
+                soocenterSource,
+                kowsarplazaSource);
     }
 
     @Override

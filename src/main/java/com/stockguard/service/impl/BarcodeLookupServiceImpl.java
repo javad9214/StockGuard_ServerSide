@@ -4,6 +4,7 @@ import com.stockguard.client.DaryamartClient;
 import com.stockguard.client.ExternalBarcodeSource;
 import com.stockguard.client.ExternalProductDto;
 import com.stockguard.client.KowsarplazaSource;
+import com.stockguard.client.MartestanSource;
 import com.stockguard.client.RojashopSource;
 import com.stockguard.client.SehSootehClient;
 import com.stockguard.client.SepehrShopSource;
@@ -30,11 +31,11 @@ import java.util.Optional;
 
 /**
  * Barcode lookup with an ordered chain of external shops: Daryamart first
- * (widest catalog), then the independent sources Kowsarplaza, 4soocenter
- * (mweb/WooCommerce) and Rojashop (cosmetics/hygiene), then the remaining
- * Sepehr platform stores (Seh Sooteh, Tisa Market). The first shop that
- * carries the barcode wins; a shop that is unreachable or errors is
- * skipped so the next one still gets a chance.
+ * (widest catalog), then the independent sources Kowsarplaza, Rojashop,
+ * Martestan (cosmetics/hygiene) and 4soocenter (mweb/WooCommerce), then
+ * the remaining Sepehr platform stores (Seh Sooteh, Tisa Market). The
+ * first shop that carries the barcode wins; a shop that is unreachable
+ * or errors is skipped so the next one still gets a chance.
  */
 @Slf4j
 @Service
@@ -53,6 +54,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private final SoocenterSource soocenterSource;
     private final KowsarplazaSource kowsarplazaSource;
     private final RojashopSource rojashopSource;
+    private final MartestanSource martestanSource;
     private final CatalogProductRepository catalogProductRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
@@ -72,6 +74,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                 new SepehrShopSource(SOURCE_DARYAMART, daryamartBaseUrl, daryamartClient),
                 kowsarplazaSource,
                 rojashopSource,
+                martestanSource,
                 soocenterSource,
                 new SepehrShopSource(SOURCE_SEHSOOTEH, sehSootehBaseUrl, sehSootehClient),
                 new SepehrShopSource(SOURCE_TISAMARKET, tisamarketBaseUrl, tisaMarketClient));

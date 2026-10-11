@@ -2,6 +2,7 @@ package com.stockguard.service;
 
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.client.KowsarplazaSource;
+import com.stockguard.client.MartestanSource;
 import com.stockguard.client.RojashopSource;
 import com.stockguard.client.SehSootehClient;
 import com.stockguard.client.SoocenterSource;
@@ -158,6 +159,20 @@ class BarcodeLookupServiceImplTest {
             RojashopSource rojashop,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket,
+                soocenter, kowsarplaza, rojashop, martestanMissing(), repo, imageStorage);
+    }
+
+    private BarcodeLookupServiceImpl serviceWithClients(
+            DaryamartClient daryamart,
+            SehSootehClient sehSooteh,
+            TisaMarketClient tisaMarket,
+            SoocenterSource soocenter,
+            KowsarplazaSource kowsarplaza,
+            RojashopSource rojashop,
+            MartestanSource martestan,
+            CatalogProductRepository repo,
+            com.stockguard.service.ImageStorageService imageStorage) {
         BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(
                 daryamart,
                 sehSooteh,
@@ -165,6 +180,7 @@ class BarcodeLookupServiceImplTest {
                 soocenter,
                 kowsarplaza,
                 rojashop,
+                martestan,
                 repo,
                 org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
                 org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
@@ -212,6 +228,15 @@ class BarcodeLookupServiceImplTest {
             @Override
             protected com.stockguard.data.dto.roja.RojaSearchResponseDto searchProducts(String barcode) {
                 return null;
+            }
+        };
+    }
+
+    private MartestanSource martestanMissing() {
+        return new MartestanSource("https://www.martestan.com") {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return "<div class=\"advancedSearchScroll\">\n <div class=\"error\">نتیجه ای یافت نشد</div>\n </div>";
             }
         };
     }
@@ -619,5 +644,70 @@ class BarcodeLookupServiceImplTest {
         org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
                 "ROJASHOP".equals(p.getExternalSource())
                         && Long.valueOf(24020L).equals(p.getExternalSourceId())));
+    }
+
+    @Test
+    void fallsBackToMartestanWhenAllEarlierShopsMiss() {
+        // captured verbatim from martestan.com (live-search snippet + product page metas)
+        String snippet = """
+                <div class="advancedSearchScroll">
+                        <h6>محصولات</h6>
+                    <div id="advancedSearchProducts">
+                        <ul class="list-unstyled">
+                                                    <li>
+                                <a href="https://www.martestan.com/product/شامپو-سدر-صحت-300-میلی-لیتر">
+                                                                    <img src="https://www.martestan.com/upload/thumb2/product/1625755777-134724.jpg" width="50" height="50" alt="شامپو سدر صحت 300 میلی لیتر"/>
+                                                                </a>
+                                <a href="https://www.martestan.com/product/شامپو-سدر-صحت-300-میلی-لیتر" class="title">شامپو سدر صحت 300 میلی لیتر</span></a>
+                            </li>
+                                                    </ul>
+                    </div>
+                        <a href="https://www.martestan.com/product?keyword=6260031000026" class="btn advanceMoreBtn">ادامه</a>
+                    </div>
+                """;
+        String productPage = """
+                <html><head>
+                <meta property="og:image" content="https://www.martestan.com/upload/product/1625755777-134724.jpg"/>
+                <meta name="product_price" content="75000"/>
+                <meta name="availability" content="instock"/>
+                <script type="application/ld+json">{"@type":"Product","mpn":"2747"}</script>
+                </head><body>
+                <script>$(document).ready(function () {
+                    $('.change-code').html("کد محصول : <span>6260031000026</span>");
+                });</script>
+                </body></html>
+                """;
+        MartestanSource martestan = new MartestanSource("https://www.martestan.com") {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return snippet;
+            }
+
+            @Override
+            protected String fetchProductPage(String productUrl) {
+                return productPage;
+            }
+        };
+
+        CatalogProductRepository repo = emptyCatalogRepository();
+        BarcodeLookupServiceImpl service = serviceWithClients(
+                FakeClients.daryamart(emptyResponse()),
+                FakeClients.sehSooteh(emptyResponse()),
+                FakeClients.tisaMarket(emptyResponse()),
+                soocenterMissing(),
+                kowsarplazaMissing(),
+                rojashopMissing(),
+                martestan,
+                repo,
+                imageStorageFailingWith("MinIO unavailable in unit test"));
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6260031000026");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getName()).isEqualTo("شامپو سدر صحت 300 میلی لیتر");
+        assertThat(result.get().getSellPrice()).isEqualTo(750000L); // meta Toman ×10
+        org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
+                "MARTESTAN".equals(p.getExternalSource())
+                        && Long.valueOf(2747L).equals(p.getExternalSourceId())));
     }
 }

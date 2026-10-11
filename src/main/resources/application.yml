@@ -61,6 +61,10 @@ rojashop:
   api:
     base-url: https://rojashop.com
 
+martestan:
+  api:
+    base-url: https://www.martestan.com
+
 feign:
   client:
     config:

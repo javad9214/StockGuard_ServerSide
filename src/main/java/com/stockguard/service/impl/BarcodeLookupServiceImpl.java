@@ -28,11 +28,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Barcode lookup with an ordered chain of external shops: the three Sepehr
- * platform stores first (Daryamart — widest catalog — then Seh Sooteh and
- * Tisa Market), then the mweb/WooCommerce sources 4soocenter and Kowsarplaza.
- * The first shop that carries the barcode wins; a shop that is unreachable
- * or errors is skipped so the next one still gets a chance.
+ * Barcode lookup with an ordered chain of external shops: Daryamart first
+ * (widest catalog), then the mweb/WooCommerce sources Kowsarplaza and
+ * 4soocenter, then the remaining Sepehr platform stores (Seh Sooteh, Tisa
+ * Market). The first shop that carries the barcode wins; a shop that is
+ * unreachable or errors is skipped so the next one still gets a chance.
  */
 @Slf4j
 @Service
@@ -67,10 +67,10 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private List<ExternalBarcodeSource> shopSources() {
         return List.of(
                 new SepehrShopSource(SOURCE_DARYAMART, daryamartBaseUrl, daryamartClient),
-                new SepehrShopSource(SOURCE_SEHSOOTEH, sehSootehBaseUrl, sehSootehClient),
-                new SepehrShopSource(SOURCE_TISAMARKET, tisamarketBaseUrl, tisaMarketClient),
+                kowsarplazaSource,
                 soocenterSource,
-                kowsarplazaSource);
+                new SepehrShopSource(SOURCE_SEHSOOTEH, sehSootehBaseUrl, sehSootehClient),
+                new SepehrShopSource(SOURCE_TISAMARKET, tisamarketBaseUrl, tisaMarketClient));
     }
 
     @Override

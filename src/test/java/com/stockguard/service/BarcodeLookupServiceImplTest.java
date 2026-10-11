@@ -2,6 +2,7 @@ package com.stockguard.service;
 
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.client.KowsarplazaSource;
+import com.stockguard.client.RojashopSource;
 import com.stockguard.client.SehSootehClient;
 import com.stockguard.client.SoocenterSource;
 import com.stockguard.client.TisaMarketClient;
@@ -121,7 +122,8 @@ class BarcodeLookupServiceImplTest {
             TisaMarketClient tisaMarket,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
-        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenterMissing(), kowsarplazaMissing(), repo, imageStorage);
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket,
+                soocenterMissing(), kowsarplazaMissing(), rojashopMissing(), repo, imageStorage);
     }
 
     private BarcodeLookupServiceImpl serviceWithClients(
@@ -131,7 +133,8 @@ class BarcodeLookupServiceImplTest {
             SoocenterSource soocenter,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
-        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenter, kowsarplazaMissing(), repo, imageStorage);
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket,
+                soocenter, kowsarplazaMissing(), rojashopMissing(), repo, imageStorage);
     }
 
     private BarcodeLookupServiceImpl serviceWithClients(
@@ -142,12 +145,26 @@ class BarcodeLookupServiceImplTest {
             KowsarplazaSource kowsarplaza,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket,
+                soocenter, kowsarplaza, rojashopMissing(), repo, imageStorage);
+    }
+
+    private BarcodeLookupServiceImpl serviceWithClients(
+            DaryamartClient daryamart,
+            SehSootehClient sehSooteh,
+            TisaMarketClient tisaMarket,
+            SoocenterSource soocenter,
+            KowsarplazaSource kowsarplaza,
+            RojashopSource rojashop,
+            CatalogProductRepository repo,
+            com.stockguard.service.ImageStorageService imageStorage) {
         BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(
                 daryamart,
                 sehSooteh,
                 tisaMarket,
                 soocenter,
                 kowsarplaza,
+                rojashop,
                 repo,
                 org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
                 org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
@@ -186,6 +203,15 @@ class BarcodeLookupServiceImplTest {
             @Override
             protected String searchSnippet(String barcode) {
                 return "<div class=\"header-search-not-found\"> نتیجه‌ای یافت نشد </div>";
+            }
+        };
+    }
+
+    private RojashopSource rojashopMissing() {
+        return new RojashopSource("https://rojashop.com") {
+            @Override
+            protected com.stockguard.data.dto.roja.RojaSearchResponseDto searchProducts(String barcode) {
+                return null;
             }
         };
     }
@@ -546,5 +572,52 @@ class BarcodeLookupServiceImplTest {
         org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
                 "KOWSARPLAZA".equals(p.getExternalSource())
                         && Long.valueOf(27898L).equals(p.getExternalSourceId())));
+    }
+
+    @Test
+    void fallsBackToRojashopWhenAllEarlierShopsMiss() throws Exception {
+        // captured verbatim from rojashop.com (/api/ajax_search JSON + product page price block)
+        String searchJson = """
+                {"status":true,"data":{"products":[{"id":24020,"title":"مایع دستشویی هرباسنس مدل Mountain Dew آردن","image":"https://images.rojashop.com/pr:sharp/rs:fill:200:0:0/plain/s3://uploads/products/behdashti/brand_20430/35542/6260147707710.jpg","url":"https://rojashop.com/product/%D9%85%D8%A7%DB%8C%D8%B9-%D8%AF%D8%B3%D8%AA%D8%B4%D9%88%DB%8C%DB%8C-%D9%87%D8%B1%D8%A8%D8%A7%D8%B3%D9%86%D8%B3-%D9%85%D8%AF%D9%84-mountain-dew"}],"cats":[],"brands":[],"auto_complete":"","term":"6260147707710"},"search_page":"/"}
+                """;
+        String productPage = """
+                <html><body>
+                <strong class="text-info h6 text-decoration-line-through fw-normal d-block">۲۴۹,۹۲۰ <span>تومان</span></strong>
+                <strong class="text-black h5 mt-2 fw-normal d-block"> ۱۴۹,۹۵۲ <span>تومان</span></strong>
+                </body></html>
+                """;
+        com.stockguard.data.dto.roja.RojaSearchResponseDto response =
+                objectMapper.readValue(searchJson, com.stockguard.data.dto.roja.RojaSearchResponseDto.class);
+        RojashopSource rojashop = new RojashopSource("https://rojashop.com") {
+            @Override
+            protected com.stockguard.data.dto.roja.RojaSearchResponseDto searchProducts(String barcode) {
+                return response;
+            }
+
+            @Override
+            protected String fetchProductPage(String productUrl) {
+                return productPage;
+            }
+        };
+
+        CatalogProductRepository repo = emptyCatalogRepository();
+        BarcodeLookupServiceImpl service = serviceWithClients(
+                FakeClients.daryamart(emptyResponse()),
+                FakeClients.sehSooteh(emptyResponse()),
+                FakeClients.tisaMarket(emptyResponse()),
+                soocenterMissing(),
+                kowsarplazaMissing(),
+                rojashop,
+                repo,
+                imageStorageFailingWith("MinIO unavailable in unit test"));
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6260147707710");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getName()).isEqualTo("مایع دستشویی هرباسنس مدل Mountain Dew آردن");
+        assertThat(result.get().getSellPrice()).isEqualTo(1499520L); // ۱۴۹,۹۵۲ Toman ×10
+        org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
+                "ROJASHOP".equals(p.getExternalSource())
+                        && Long.valueOf(24020L).equals(p.getExternalSourceId())));
     }
 }

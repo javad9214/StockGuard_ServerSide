@@ -57,6 +57,10 @@ kowsarplaza:
   api:
     base-url: https://kowsarplaza.com
 
+rojashop:
+  api:
+    base-url: https://rojashop.com
+
 feign:
   client:
     config:

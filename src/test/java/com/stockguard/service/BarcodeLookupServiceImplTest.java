@@ -2,6 +2,7 @@ package com.stockguard.service;
 
 import com.stockguard.client.DaryamartClient;
 import com.stockguard.client.SehSootehClient;
+import com.stockguard.client.SoocenterSource;
 import com.stockguard.client.TisaMarketClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
 import com.stockguard.data.dto.sepehr.SepehrSearchResponseDto;
@@ -119,10 +120,21 @@ class BarcodeLookupServiceImplTest {
             TisaMarketClient tisaMarket,
             CatalogProductRepository repo,
             com.stockguard.service.ImageStorageService imageStorage) {
+        return serviceWithClients(daryamart, sehSooteh, tisaMarket, soocenterMissing(), repo, imageStorage);
+    }
+
+    private BarcodeLookupServiceImpl serviceWithClients(
+            DaryamartClient daryamart,
+            SehSootehClient sehSooteh,
+            TisaMarketClient tisaMarket,
+            SoocenterSource soocenter,
+            CatalogProductRepository repo,
+            com.stockguard.service.ImageStorageService imageStorage) {
         BarcodeLookupServiceImpl impl = new BarcodeLookupServiceImpl(
                 daryamart,
                 sehSooteh,
                 tisaMarket,
+                soocenter,
                 repo,
                 org.mockito.Mockito.mock(com.stockguard.repository.CategoryRepository.class),
                 org.mockito.Mockito.mock(com.stockguard.repository.SubcategoryRepository.class),
@@ -143,6 +155,17 @@ class BarcodeLookupServiceImplTest {
         org.mockito.Mockito.when(storage.storeFromUrl(org.mockito.ArgumentMatchers.anyString()))
                 .thenThrow(new RuntimeException(reason));
         return storage;
+    }
+
+
+    /** soocenter stub that misses every barcode (chain tests only need it inert). */
+    private SoocenterSource soocenterMissing() {
+        return new SoocenterSource() {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return "<div class=\"header-search-not-found\"> نتیجه‌ای یافت نشد </div>";
+            }
+        };
     }
 
     private CatalogProductRepository emptyCatalogRepository() {
@@ -405,5 +428,55 @@ class BarcodeLookupServiceImplTest {
                 imageStorageFailingWith("MinIO unavailable in unit test"));
 
         assertThat(service.lookupByBarcode("0000000000000")).isEmpty();
+    }
+
+    @Test
+    void fallsBackToSoocenterWhenAllSepehrShopsMiss() {
+        // captured verbatim from 4soocenter.ir (mweb admin-ajax + product JSON-LD)
+        String snippet = """
+                <div class="ajax_search_list vertical_scroll_css">
+                    <div class="post_with_thumb">
+                        <div class="post-thumb"></div>
+                        <div class="inner">
+                            <a href="https://4soocenter.ir/product/%d9%85%d8%ad%d8%b5%d9%88%d9%84-4928/" title="شیرین عسل-شوکو کیک (وانیل)-40 گرمی" target="_blank">شیرین عسل-شوکو کیک (وانیل)-40 گرمی</a>
+                        </div>
+                    </div>
+                </div>
+                """;
+        String productPage = """
+                <script type="application/ld+json">{"@context":"https://schema.org/","@type":"Product",
+                "name":"شیرین عسل-شوکو کیک (وانیل)-40 گرمی","description":null,"sku":"6261149137093","mpn":null,
+                "offers":{"@type":"Offer","price":"185000","priceCurrency":"IRR",
+                "url":"https://4soocenter.ir/product/%d9%85%d8%ad%d8%b5%d9%88%d9%84-4928/"}}</script>
+                """;
+        SoocenterSource soocenter = new SoocenterSource() {
+            @Override
+            protected String searchSnippet(String barcode) {
+                return snippet;
+            }
+
+            @Override
+            protected String fetchProductPage(String productUrl) {
+                return productPage;
+            }
+        };
+
+        CatalogProductRepository repo = emptyCatalogRepository();
+        BarcodeLookupServiceImpl service = serviceWithClients(
+                FakeClients.daryamart(emptyResponse()),
+                FakeClients.sehSooteh(emptyResponse()),
+                FakeClients.tisaMarket(emptyResponse()),
+                soocenter,
+                repo,
+                imageStorageFailingWith("MinIO unavailable in unit test"));
+
+        Optional<BarcodeProductResponseDTO> result = service.lookupByBarcode("6261149137093");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getName()).isEqualTo("شیرین عسل-شوکو کیک (وانیل)-40 گرمی");
+        assertThat(result.get().getSellPrice()).isEqualTo(185000L); // IRR as-is, no ×10
+        org.mockito.Mockito.verify(repo).save(org.mockito.ArgumentMatchers.argThat(p ->
+                "SOOCENTER".equals(p.getExternalSource())
+                        && Long.valueOf(4928L).equals(p.getExternalSourceId())));
     }
 }

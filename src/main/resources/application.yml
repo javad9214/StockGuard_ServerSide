@@ -49,6 +49,10 @@ tisamarket:
   api:
     base-url: https://tisamarket.co
 
+soocenter:
+  api:
+    base-url: https://4soocenter.ir
+
 feign:
   client:
     config:

@@ -21,12 +21,14 @@ import java.util.regex.Pattern;
  * فروشگاه اینترنتی روژا (rojashop.com) — cosmetics/hygiene shop with its
  * own JSON ajax search: POST /api/ajax_search with form body
  * term=&lt;barcode&gt;. The endpoint answers only requests carrying
- * same-origin headers (Origin/Referer/X-Requested-With), so those are sent
- * explicitly. The response carries no barcode field — the shop names each
- * product image after its barcode (…/&lt;internal id&gt;/&lt;BARCODE&gt;.jpg),
- * and only a hit whose image carries the queried barcode is accepted. The
- * product-page JSON-LD price is stale on this shop, so the live sale price
- * is read from the page HTML (تومان with Persian digits → ×10 Rial).
+ * same-origin headers (Origin/Referer/X-Requested-With) and a real
+ * browser User-Agent — a bot-style UA got 403 from datacenter IPs while
+ * the same request browsed as Chrome passed. The response carries no
+ * barcode field — the shop names each product image after its barcode
+ * (…/&lt;internal id&gt;/&lt;BARCODE&gt;.jpg), and only a hit whose image carries the
+ * queried barcode is accepted. The product-page JSON-LD price is stale
+ * on this shop, so the live sale price is read from the page HTML
+ * (تومان with Persian digits → ×10 Rial).
  */
 @Slf4j
 @Component
@@ -42,9 +44,15 @@ public class RojashopSource implements ExternalBarcodeSource {
 
     private final String baseUrl;
 
+    // the shop's middleware rejects bot-looking clients from datacenter
+    // IPs ("Mozilla/5.0 (compatible; …)" got 403 while the same request
+    // with a real browser UA passed) — so this source browses as Chrome
     private final RestClient httpClient = RestClient.builder()
             .requestFactory(requestFactory())
-            .defaultHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (compatible; StockGuard-lookup)")
+            .defaultHeader(HttpHeaders.USER_AGENT,
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                            + "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+            .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "fa-IR,fa;q=0.9,en;q=0.8")
             .build();
 
     public RojashopSource(@Value("${rojashop.api.base-url}") String baseUrl) {

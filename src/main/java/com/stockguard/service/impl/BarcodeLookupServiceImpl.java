@@ -11,6 +11,7 @@ import com.stockguard.client.SepehrShopSource;
 import com.stockguard.client.SoocenterSource;
 import com.stockguard.client.TisaMarketClient;
 import com.stockguard.data.dto.barcode.response.BarcodeProductResponseDTO;
+import com.stockguard.data.dto.barcode.response.EnrichmentBatchStatusDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.entity.Category;
 import com.stockguard.data.entity.Subcategory;
@@ -20,6 +21,7 @@ import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.service.BarcodeLookupService;
 import com.stockguard.service.ImageStorageService;
 import com.stockguard.util.CatalogCompleteness;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,8 +29,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Barcode lookup with an ordered chain of external shops: Daryamart first
@@ -105,8 +111,10 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
      * Shops are tried in order until everything they can supply is filled.
      * Best-effort — the (possibly still incomplete) catalog response is
      * returned either way.
+     *
+     * @return whether any missing field was actually filled
      */
-    private void enrichFromShops(String barcode, CatalogProduct product) {
+    private boolean enrichFromShops(String barcode, CatalogProduct product) {
         try {
             log.info("🔄 Catalog product {} lacks title/image/prices, refreshing from external shops: {}",
                     product.getId(), barcode);
@@ -163,9 +171,174 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             if (!changed) {
                 log.info("🔍 External shops had nothing new for catalog product {}", product.getId());
             }
+            return changed;
         } catch (Exception e) {
             log.warn("⚠️ Could not enrich catalog product {} from external shops: {}",
                     product.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    // ================= BATCH ENRICHMENT =================
+
+    /**
+     * Pause between products so a batch run does not hammer seven external
+     * shops back-to-back for minutes on end.
+     */
+    private static final long BATCH_PAUSE_MILLIS = 300;
+
+    private final ExecutorService enrichmentBatchExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "catalog-enrichment-batch");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private volatile EnrichmentBatchState batchState;
+
+    @Override
+    public synchronized EnrichmentBatchStatusDTO startEnrichmentBatch() {
+        if (batchState != null && batchState.running) {
+            log.warn("⏳ Enrichment batch already running: {} of {} done, {} left — not starting another",
+                    batchState.processed.get(), batchState.total, batchState.total - batchState.processed.get());
+            return batchState.toStatus();
+        }
+
+        List<Long> ids = catalogProductRepository.findIncompleteIds(CatalogCompleteness.UNNAMED_PLACEHOLDER);
+        batchState = new EnrichmentBatchState(ids.size());
+        log.info("🚀 Enrichment batch started: {} incomplete products to try", ids.size());
+        enrichmentBatchExecutor.submit(() -> runEnrichmentBatch(ids, batchState));
+        return batchState.toStatus();
+    }
+
+    @Override
+    public EnrichmentBatchStatusDTO getEnrichmentBatchStatus() {
+        EnrichmentBatchState state = batchState;
+        return state != null ? state.toStatus() : EnrichmentBatchStatusDTO.builder().build();
+    }
+
+    private void runEnrichmentBatch(List<Long> ids, EnrichmentBatchState state) {
+        try {
+            for (Long id : ids) {
+                if (Thread.currentThread().isInterrupted()) {
+                    log.warn("🛑 Enrichment batch interrupted, stopping early");
+                    break;
+                }
+                try {
+                    processBatchProduct(id, state);
+                } catch (Exception e) {
+                    state.failed.incrementAndGet();
+                    log.warn("⚠️ [batch] Unexpected failure on catalog product {}: {}", id, e.getMessage());
+                }
+                pauseBetweenProducts();
+            }
+        } finally {
+            state.running = false;
+            state.finishedAt = LocalDateTime.now();
+            log.info("🏁 Enrichment batch finished: processed={} of {}, enriched={}, stillIncomplete={}, failed={}",
+                    state.processed.get(), state.total, state.enriched.get(),
+                    state.stillIncomplete.get(), state.failed.get());
+        }
+    }
+
+    private void processBatchProduct(Long id, EnrichmentBatchState state) {
+        Optional<CatalogProduct> found = catalogProductRepository.findById(id);
+        if (found.isEmpty()) {
+            state.processed.incrementAndGet();
+            return;
+        }
+        CatalogProduct product = found.get();
+        if (!CatalogCompleteness.needsEnrichment(product)) {
+            // completed by a user scan while the batch worked through the list
+            log.info("⏭️ [batch {}/{}] product {} already complete, skipping",
+                    state.processed.get() + 1, state.total, id);
+            state.processed.incrementAndGet();
+            return;
+        }
+
+        state.currentBarcode = product.getBarcode();
+        log.info("🔎 [batch {}/{}] looking up product {} (barcode={}, name='{}') in external shops",
+                state.processed.get() + 1, state.total, id, product.getBarcode(), product.getName());
+
+        boolean changed = enrichFromShops(product.getBarcode(), product);
+        boolean complete = !CatalogCompleteness.needsEnrichment(product);
+
+        if (changed) {
+            state.enriched.incrementAndGet();
+        }
+        if (!complete) {
+            state.stillIncomplete.incrementAndGet();
+        }
+        state.processed.incrementAndGet();
+
+        String outcome = complete
+                ? "complete now"
+                : changed
+                        ? "partially enriched, still missing " + missingFields(product)
+                        : "shops had nothing new, still missing " + missingFields(product);
+        log.info("{} [batch] product {} (barcode={}): {} ({} left)",
+                complete ? "✅" : changed ? "🟡" : "❌", id, product.getBarcode(), outcome,
+                state.total - state.processed.get());
+    }
+
+    private String missingFields(CatalogProduct product) {
+        List<String> missing = new ArrayList<>();
+        if (CatalogCompleteness.titleMissing(product)) {
+            missing.add("title");
+        }
+        if (CatalogCompleteness.sellPriceMissing(product)) {
+            missing.add("price");
+        }
+        if (CatalogCompleteness.imageMissing(product)) {
+            missing.add("image");
+        }
+        return String.join(", ", missing);
+    }
+
+    private void pauseBetweenProducts() {
+        try {
+            Thread.sleep(BATCH_PAUSE_MILLIS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @PreDestroy
+    void shutdownEnrichmentBatch() {
+        enrichmentBatchExecutor.shutdownNow();
+    }
+
+    /**
+     * Mutable progress of the running/last batch; written only by the
+     * single batch thread, read by status requests.
+     */
+    private static final class EnrichmentBatchState {
+        final int total;
+        final LocalDateTime startedAt = LocalDateTime.now();
+        final AtomicInteger processed = new AtomicInteger();
+        final AtomicInteger enriched = new AtomicInteger();
+        final AtomicInteger stillIncomplete = new AtomicInteger();
+        final AtomicInteger failed = new AtomicInteger();
+        volatile boolean running = true;
+        volatile LocalDateTime finishedAt;
+        volatile String currentBarcode;
+
+        EnrichmentBatchState(int total) {
+            this.total = total;
+        }
+
+        EnrichmentBatchStatusDTO toStatus() {
+            return EnrichmentBatchStatusDTO.builder()
+                    .running(running)
+                    .currentBarcode(currentBarcode)
+                    .total(total)
+                    .processed(processed.get())
+                    .remaining(Math.max(0, total - processed.get()))
+                    .enriched(enriched.get())
+                    .stillIncomplete(stillIncomplete.get())
+                    .failed(failed.get())
+                    .startedAt(startedAt)
+                    .finishedAt(finishedAt)
+                    .build();
         }
     }
 

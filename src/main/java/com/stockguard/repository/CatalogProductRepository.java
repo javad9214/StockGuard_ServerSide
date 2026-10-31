@@ -98,11 +98,23 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
     );
 
     /**
-     * Admin incomplete-products backlog: active rows that survived shop
-     * enrichment still missing a real title, sell price or a stored
-     * (MinIO-key) image. SQL twin of CatalogCompleteness — keep the
-     * predicates in sync. Ordered most recently looked-up first; rows
-     * never looked-up since the column was introduced fall back to
+     * SQL twin of CatalogCompleteness's missing-field predicates — active
+     * rows still missing a real title, sell price or a stored (MinIO-key)
+     * image. Shared by the admin backlog query and the batch-enrichment
+     * ID fetch; keep in sync with the Java side.
+     */
+    String INCOMPLETE_PREDICATE = """
+            cp.isActive = true
+            AND (
+                cp.suggestedSellPrice IS NULL
+                OR cp.name IS NULL OR TRIM(cp.name) = '' OR cp.name = :unnamedPlaceholder
+                OR cp.imageKey IS NULL OR TRIM(cp.imageKey) = ''
+                   OR cp.imageKey LIKE 'http://%' OR cp.imageKey LIKE 'https://%'
+            )""";
+
+    /**
+     * Admin incomplete-products backlog, most recently looked-up first;
+     * rows never looked-up since the column was introduced fall back to
      * creation time.
      */
     @Query(
@@ -110,28 +122,24 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
         SELECT cp FROM CatalogProduct cp
         JOIN FETCH cp.subcategory s
         JOIN FETCH s.category
-        WHERE cp.isActive = true
-          AND (
-              cp.suggestedSellPrice IS NULL
-              OR cp.name IS NULL OR TRIM(cp.name) = '' OR cp.name = :unnamedPlaceholder
-              OR cp.imageKey IS NULL OR TRIM(cp.imageKey) = ''
-                 OR cp.imageKey LIKE 'http://%' OR cp.imageKey LIKE 'https://%'
-          )
+        WHERE """ + INCOMPLETE_PREDICATE + """
         ORDER BY COALESCE(cp.lastLookupAt, cp.createdAt) DESC
     """,
             countQuery = """
         SELECT COUNT(cp) FROM CatalogProduct cp
-        WHERE cp.isActive = true
-          AND (
-              cp.suggestedSellPrice IS NULL
-              OR cp.name IS NULL OR TRIM(cp.name) = '' OR cp.name = :unnamedPlaceholder
-              OR cp.imageKey IS NULL OR TRIM(cp.imageKey) = ''
-                 OR cp.imageKey LIKE 'http://%' OR cp.imageKey LIKE 'https://%'
-          )
-    """
+        WHERE """ + INCOMPLETE_PREDICATE
     )
     Page<CatalogProduct> findIncomplete(
             @Param("unnamedPlaceholder") String unnamedPlaceholder,
             Pageable pageable
     );
+
+    /**
+     * IDs of every incomplete row, ordered by primary key so the ordering
+     * stays stable while the batch mutates lastLookupAt. Each row is
+     * re-checked before enriching — some may be completed by user scans
+     * while the batch works through the list.
+     */
+    @Query("SELECT cp.id FROM CatalogProduct cp WHERE " + INCOMPLETE_PREDICATE + " ORDER BY cp.id")
+    List<Long> findIncompleteIds(@Param("unnamedPlaceholder") String unnamedPlaceholder);
 }

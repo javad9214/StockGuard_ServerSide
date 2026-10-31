@@ -1,5 +1,6 @@
 package com.stockguard.controller;
 
+import com.stockguard.data.dto.barcode.response.EnrichmentBatchStatusDTO;
 import com.stockguard.data.dto.catalog.response.IncompleteCatalogProductDTO;
 import com.stockguard.data.dto.common.PagedResponse;
 import com.stockguard.data.dto.common.ResponseDTO;
@@ -7,6 +8,7 @@ import com.stockguard.data.dto.image.response.ImageUploadResponseDTO;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.data.enums.ResponseCode;
 import com.stockguard.service.AdminCatalogService;
+import com.stockguard.service.BarcodeLookupService;
 import com.stockguard.service.ImageStorageService;
 import com.stockguard.util.ImageUrlResolver;
 import jakarta.validation.Valid;
@@ -32,6 +34,7 @@ public class AdminCatalogController extends BaseController {
 
     private final AdminCatalogService adminCatalogService;
     private final ImageStorageService imageStorageService;
+    private final BarcodeLookupService barcodeLookupService;
 
     /**
      * Get all catalog products (including pending)
@@ -191,6 +194,28 @@ public class AdminCatalogController extends BaseController {
                 pageResult.getTotalPages(),
                 pageResult.isLast()
         );
+    }
+
+    /**
+     * Start a background batch that re-runs shop enrichment for every
+     * incomplete catalog product (missing title, sell price or stored
+     * image). Returns immediately with the batch progress; per-product
+     * detail (looked-up barcode, what was filled, how many left) goes to
+     * the server logs. Calling again while a batch runs just reports it.
+     * POST /api/admin/catalog/incomplete/enrich
+     */
+    @PostMapping("/incomplete/enrich")
+    public ResponseEntity<ResponseDTO<EnrichmentBatchStatusDTO>> startEnrichmentBatch() {
+        return generateOKResponse(barcodeLookupService.startEnrichmentBatch());
+    }
+
+    /**
+     * Progress of the running or last enrichment batch.
+     * GET /api/admin/catalog/incomplete/enrich/status
+     */
+    @GetMapping("/incomplete/enrich/status")
+    public ResponseEntity<ResponseDTO<EnrichmentBatchStatusDTO>> getEnrichmentBatchStatus() {
+        return generateOKResponse(barcodeLookupService.getEnrichmentBatchStatus());
     }
 
     /**

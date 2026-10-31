@@ -14,6 +14,8 @@ public interface AdminCatalogService {
 
     Page<CatalogProduct> getPendingReview(Pageable pageable);
 
+    Page<CatalogProduct> getIncompleteProducts(Pageable pageable);
+
     CatalogProduct createCatalogProduct(CatalogProduct product);
 
     CatalogProduct updateCatalogProduct(Long id, CatalogProduct product);

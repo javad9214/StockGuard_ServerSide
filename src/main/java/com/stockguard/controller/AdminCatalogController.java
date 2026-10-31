@@ -1,5 +1,6 @@
 package com.stockguard.controller;
 
+import com.stockguard.data.dto.catalog.response.IncompleteCatalogProductDTO;
 import com.stockguard.data.dto.common.PagedResponse;
 import com.stockguard.data.dto.common.ResponseDTO;
 import com.stockguard.data.dto.image.response.ImageUploadResponseDTO;
@@ -160,6 +161,30 @@ public class AdminCatalogController extends BaseController {
 
         return new PagedResponse<>(
                 pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                pageResult.isLast()
+        );
+    }
+
+    /**
+     * Catalog rows still missing a real title, sell price or a stored
+     * image — the manual-fix backlog after barcode-lookup enrichment ran
+     * out of sources. Most recently looked-up first, so what users are
+     * scanning now floats to the top; each entry flags which fields are
+     * missing. Rows drop out of this list automatically once fixed.
+     * GET /api/admin/catalog/incomplete
+     */
+    @GetMapping("/incomplete")
+    public PagedResponse<IncompleteCatalogProductDTO> getIncompleteProducts(
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        Page<CatalogProduct> pageResult = adminCatalogService.getIncompleteProducts(pageable);
+
+        return new PagedResponse<>(
+                pageResult.getContent().stream().map(IncompleteCatalogProductDTO::from).toList(),
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),

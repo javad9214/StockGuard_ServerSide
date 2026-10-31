@@ -3,6 +3,7 @@ package com.stockguard.service.impl;
 import com.stockguard.data.entity.CatalogProduct;
 import com.stockguard.repository.CatalogProductRepository;
 import com.stockguard.service.AdminCatalogService;
+import com.stockguard.util.CatalogCompleteness;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,13 @@ public class AdminCatalogServiceImpl implements AdminCatalogService {
     @Transactional(readOnly = true)
     public Page<CatalogProduct> getPendingReview(Pageable pageable) {
         return catalogProductRepository.findPendingReview(pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CatalogProduct> getIncompleteProducts(Pageable pageable) {
+        return catalogProductRepository.findIncomplete(
+                CatalogCompleteness.UNNAMED_PLACEHOLDER, pageable);
     }
 
     @Override

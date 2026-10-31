@@ -19,13 +19,14 @@ import com.stockguard.repository.CategoryRepository;
 import com.stockguard.repository.SubcategoryRepository;
 import com.stockguard.service.BarcodeLookupService;
 import com.stockguard.service.ImageStorageService;
-import com.stockguard.util.ImageUrlResolver;
+import com.stockguard.util.CatalogCompleteness;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,7 +47,6 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
     private static final String SOURCE_SEHSOOTEH = "SEHSOOTEH";
     private static final String SOURCE_TISAMARKET = "TISAMARKET";
     private static final String UNKNOWN_CATEGORY = "Unknown";
-    private static final String UNNAMED_PLACEHOLDER = "بدون نام";
 
     private final DaryamartClient daryamartClient;
     private final SehSootehClient sehSootehClient;
@@ -87,7 +87,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             CatalogProduct product = local.get();
             log.info("🏷️ Barcode found in catalog: {}", barcode);
 
-            if (needsEnrichment(product)) {
+            if (CatalogCompleteness.needsEnrichment(product)) {
                 enrichFromShops(barcode, product);
             }
             return Optional.of(toResponse(product));
@@ -95,24 +95,6 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
 
         log.info("🏷️ Barcode not in catalog, searching external shops: {}", barcode);
         return lookupInShops(barcode);
-    }
-
-    /**
-     * A catalog hit short-circuits (no external calls) only when the row is
-     * complete: a real title, a stored image and a sell price. Cost price is
-     * deliberately not part of the trigger — the shops never return one, so
-     * including it would re-query them on every lookup with nothing to
-     * gain; cost price is only filled by admin/user data entry.
-     */
-    private boolean needsEnrichment(CatalogProduct product) {
-        return titleMissing(product)
-                || product.getSuggestedSellPrice() == null
-                || !ImageUrlResolver.isStoredKey(product.getImageKey());
-    }
-
-    private boolean titleMissing(CatalogProduct product) {
-        return !StringUtils.hasText(product.getName())
-                || UNNAMED_PLACEHOLDER.equals(product.getName());
     }
 
     /**
@@ -129,11 +111,16 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             log.info("🔄 Catalog product {} lacks title/image/prices, refreshing from external shops: {}",
                     product.getId(), barcode);
 
+            // Record the scan even when no shop contributes anything new:
+            // the admin incomplete-products backlog orders by most recently
+            // looked-up, and the row is saved unconditionally below.
+            product.setLastLookupAt(LocalDateTime.now());
+
             boolean changed = false;
             for (ExternalBarcodeSource source : shopSources()) {
-                boolean titleMissing = titleMissing(product);
-                boolean priceMissing = product.getSuggestedSellPrice() == null;
-                boolean imageMissing = !ImageUrlResolver.isStoredKey(product.getImageKey());
+                boolean titleMissing = CatalogCompleteness.titleMissing(product);
+                boolean priceMissing = CatalogCompleteness.sellPriceMissing(product);
+                boolean imageMissing = CatalogCompleteness.imageMissing(product);
                 if (!titleMissing && !priceMissing && !imageMissing) {
                     break;
                 }
@@ -171,9 +158,9 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                 }
             }
 
-            if (changed) {
-                catalogProductRepository.save(product);
-            } else {
+            // always saved: at minimum lastLookupAt is dirty from this attempt
+            catalogProductRepository.save(product);
+            if (!changed) {
                 log.info("🔍 External shops had nothing new for catalog product {}", product.getId());
             }
         } catch (Exception e) {
@@ -255,7 +242,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
             }
 
             CatalogProduct saved = catalogProductRepository.save(CatalogProduct.builder()
-                    .name(StringUtils.hasText(product.name()) ? product.name() : UNNAMED_PLACEHOLDER)
+                    .name(StringUtils.hasText(product.name()) ? product.name() : CatalogCompleteness.UNNAMED_PLACEHOLDER)
                     .barcode(barcode)
                     .imageKey(storeImage(source.name(), product.imageUrl()))
                     .suggestedSellPrice(product.priceRial())
@@ -267,6 +254,7 @@ public class BarcodeLookupServiceImpl implements BarcodeLookupService {
                     .qualityScore(70)
                     .adoptionCount(0)
                     .isActive(true)
+                    .lastLookupAt(LocalDateTime.now())
                     .build());
 
             log.info("✅ Saved {} product to catalog: barcode={}, name={}, catalogId={}",

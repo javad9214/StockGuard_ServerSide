@@ -96,4 +96,42 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
             String externalSource,
             Long externalSourceId
     );
+
+    /**
+     * Admin incomplete-products backlog: active rows that survived shop
+     * enrichment still missing a real title, sell price or a stored
+     * (MinIO-key) image. SQL twin of CatalogCompleteness — keep the
+     * predicates in sync. Ordered most recently looked-up first; rows
+     * never looked-up since the column was introduced fall back to
+     * creation time.
+     */
+    @Query(
+            value = """
+        SELECT cp FROM CatalogProduct cp
+        JOIN FETCH cp.subcategory s
+        JOIN FETCH s.category
+        WHERE cp.isActive = true
+          AND (
+              cp.suggestedSellPrice IS NULL
+              OR cp.name IS NULL OR TRIM(cp.name) = '' OR cp.name = :unnamedPlaceholder
+              OR cp.imageKey IS NULL OR TRIM(cp.imageKey) = ''
+                 OR cp.imageKey LIKE 'http://%' OR cp.imageKey LIKE 'https://%'
+          )
+        ORDER BY COALESCE(cp.lastLookupAt, cp.createdAt) DESC
+    """,
+            countQuery = """
+        SELECT COUNT(cp) FROM CatalogProduct cp
+        WHERE cp.isActive = true
+          AND (
+              cp.suggestedSellPrice IS NULL
+              OR cp.name IS NULL OR TRIM(cp.name) = '' OR cp.name = :unnamedPlaceholder
+              OR cp.imageKey IS NULL OR TRIM(cp.imageKey) = ''
+                 OR cp.imageKey LIKE 'http://%' OR cp.imageKey LIKE 'https://%'
+          )
+    """
+    )
+    Page<CatalogProduct> findIncomplete(
+            @Param("unnamedPlaceholder") String unnamedPlaceholder,
+            Pageable pageable
+    );
 }

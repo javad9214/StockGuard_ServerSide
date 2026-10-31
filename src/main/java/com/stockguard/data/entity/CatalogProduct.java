@@ -111,6 +111,16 @@ public class CatalogProduct {
     @Column(nullable = false)
     private Long externalSourceId; // snapp product id
 
+    // ================= LOOKUP ACTIVITY =================
+    /**
+     * Last time a user barcode scan was answered from this row while it
+     * was still incomplete (only then is it refreshed — complete rows
+     * short-circuit the enrichment path with no write). Orders the admin
+     * incomplete-products backlog: what users are scanning now surfaces
+     * first. Null on rows not looked-up since the column was introduced.
+     */
+    private LocalDateTime lastLookupAt;
+
     // ================= LIFECYCLE =================
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

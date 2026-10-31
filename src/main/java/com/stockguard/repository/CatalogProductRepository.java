@@ -118,16 +118,12 @@ public interface CatalogProductRepository extends JpaRepository<CatalogProduct, 
      * creation time.
      */
     @Query(
-            value = """
-        SELECT cp FROM CatalogProduct cp
-        JOIN FETCH cp.subcategory s
-        JOIN FETCH s.category
-        WHERE """ + INCOMPLETE_PREDICATE + """
-        ORDER BY COALESCE(cp.lastLookupAt, cp.createdAt) DESC
-    """,
-            countQuery = """
-        SELECT COUNT(cp) FROM CatalogProduct cp
-        WHERE """ + INCOMPLETE_PREDICATE
+            value = "SELECT cp FROM CatalogProduct cp "
+                    + "JOIN FETCH cp.subcategory s "
+                    + "JOIN FETCH s.category "
+                    + "WHERE " + INCOMPLETE_PREDICATE + " "
+                    + "ORDER BY COALESCE(cp.lastLookupAt, cp.createdAt) DESC",
+            countQuery = "SELECT COUNT(cp) FROM CatalogProduct cp WHERE " + INCOMPLETE_PREDICATE
     )
     Page<CatalogProduct> findIncomplete(
             @Param("unnamedPlaceholder") String unnamedPlaceholder,
